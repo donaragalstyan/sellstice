@@ -19,4 +19,25 @@ model User {
   name         String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  goals        Goal[]
+}
+
+enum GoalStatus {
+  ACTIVE
+  COMPLETED
+  ABANDONED
+}
+
+model Goal {
+  id                String     @id @default(cuid())
+  userId            String
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  targetAmountCents Int
+  startDate         DateTime   @default(now())
+  deadline          DateTime
+  status            GoalStatus @default(ACTIVE)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([userId])
 }
