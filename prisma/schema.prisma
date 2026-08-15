@@ -75,6 +75,7 @@ model Item {
   status               ItemStatus     @default(INVENTORY)
   photos               ItemPhoto[]
   aiAnalyses           ItemAIAnalysis[]
+  photoCoachAnalyses   PhotoCoachAnalysis[]
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
@@ -89,6 +90,7 @@ model ItemPhoto {
   storageKey String
   order      Int      @default(0)
   createdAt  DateTime @default(now())
+  photoCoachScores PhotoCoachPhotoScore[]
 
   @@index([itemId])
 }
@@ -125,4 +127,64 @@ model ItemAIAnalysis {
   createdAt DateTime @default(now())
 
   @@index([itemId])
+}
+
+enum MissingShotType {
+  BRAND_TAG
+  SIZE_TAG
+  MATERIAL_TAG
+  BACK_VIEW
+  FLAW_CLOSEUP
+  MODELED_PHOTO
+  FLAT_LAY
+}
+
+// Advice only — Photo Coach never touches the underlying photo files, and
+// this table never feeds back into Item or ItemPhoto. It's a separate,
+// disposable opinion about an existing photo set, not canonical data.
+model PhotoCoachAnalysis {
+  id     String @id @default(cuid())
+  itemId String
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  missingShots MissingShotType[]
+
+  modelId   String
+  createdAt DateTime @default(now())
+
+  scores PhotoCoachPhotoScore[]
+
+  @@index([itemId])
+}
+
+// One row per photo covered by a given analysis. Cascades away with either
+// its parent analysis or the underlying photo — a deleted photo just drops
+// its score row rather than leaving a dangling reference.
+model PhotoCoachPhotoScore {
+  id         String             @id @default(cuid())
+  analysisId String
+  analysis   PhotoCoachAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  photoId    String
+  photo      ItemPhoto          @relation(fields: [photoId], references: [id], onDelete: Cascade)
+
+  // Snapshot of the photo's gallery position at analysis time, so "Photo 3"
+  // in a past analysis still means something after photos are added/removed.
+  photoOrder Int
+
+  score       Float
+  isBestCover Boolean @default(false)
+
+  lightingOk       Boolean
+  lightingFeedback String?
+  framingOk        Boolean
+  framingFeedback  String?
+  backgroundOk       Boolean
+  backgroundFeedback String?
+  shapeVisibleOk       Boolean
+  shapeVisibleFeedback String?
+
+  createdAt DateTime @default(now())
+
+  @@index([analysisId])
+  @@index([photoId])
 }

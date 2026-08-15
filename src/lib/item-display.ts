@@ -21,3 +21,13 @@ export const ITEM_STATUS_LABELS: Record<string, string> = {
   SOLD: "Sold",
   ARCHIVED: "Archived",
 };
+
+export const MISSING_SHOT_LABELS: Record<string, string> = {
+  BRAND_TAG: "Add a brand tag photo.",
+  SIZE_TAG: "Add a size tag photo.",
+  MATERIAL_TAG: "Add a material/care label photo.",
+  BACK_VIEW: "Add a back view.",
+  FLAW_CLOSEUP: "Add a close-up of the flaw.",
+  MODELED_PHOTO: "Try a modeled photo.",
+  FLAT_LAY: "Try a clean flat lay.",
+};

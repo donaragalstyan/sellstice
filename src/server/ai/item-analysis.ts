@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ITEM_CONDITIONS } from "@/lib/validation";
 import { AnthropicProvider } from "@/server/ai";
 import type { ImageInput } from "@/server/ai";
+import { getCooldownRemainingMs } from "@/server/ai/cooldown";
 
 // Item analysis is a bounded, well-specified extraction task (fixed schema,
 // short output) rather than open-ended reasoning, so it doesn't need a
@@ -25,15 +26,12 @@ export const MAX_ANALYSIS_PHOTOS = 4;
  */
 export const ANALYSIS_COOLDOWN_MS = 30_000;
 
-/** Pure so the cooldown boundary is testable without waiting real time. */
 export function getAnalysisCooldownRemainingMs(
   lastAnalyzedAt: Date | null,
   now: Date,
   cooldownMs = ANALYSIS_COOLDOWN_MS,
 ): number {
-  if (!lastAnalyzedAt) return 0;
-  const elapsed = now.getTime() - lastAnalyzedAt.getTime();
-  return Math.max(0, cooldownMs - elapsed);
+  return getCooldownRemainingMs(lastAnalyzedAt, now, cooldownMs);
 }
 
 const suggestedField = <T extends z.ZodTypeAny>(valueSchema: T) =>
