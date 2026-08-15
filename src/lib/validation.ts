@@ -21,3 +21,25 @@ export const goalSchema = z.object({
     "Deadline must be in the future",
   ),
 });
+
+export const ITEM_CONDITIONS = [
+  "NEW_WITH_TAGS",
+  "NEW_WITHOUT_TAGS",
+  "LIKE_NEW",
+  "GOOD",
+  "FAIR",
+] as const;
+
+export const itemSchema = z.object({
+  brand: z.string().trim().max(100).optional(),
+  color: z.string().trim().max(100).optional(),
+  category: z.string().trim().max(100).optional(),
+  size: z.string().trim().max(50).optional(),
+  condition: z.enum(ITEM_CONDITIONS).optional(),
+  notableDetails: z.string().trim().max(2000).optional(),
+  acquisitionCost: z.coerce
+    .number()
+    .nonnegative("Enter a value of $0 or more")
+    .max(1_000_000, "That amount looks too large")
+    .optional(),
+});

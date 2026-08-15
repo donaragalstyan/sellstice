@@ -20,6 +20,7 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   goals        Goal[]
+  items        Item[]
 }
 
 enum GoalStatus {
@@ -40,4 +41,53 @@ model Goal {
   updatedAt         DateTime   @updatedAt
 
   @@index([userId])
+}
+
+enum ItemStatus {
+  INVENTORY
+  READY_TO_LIST
+  LISTED
+  SOLD
+  ARCHIVED
+}
+
+enum ItemCondition {
+  NEW_WITH_TAGS
+  NEW_WITHOUT_TAGS
+  LIKE_NEW
+  GOOD
+  FAIR
+}
+
+// Deliberately separate from Listing (introduced in a later phase): a user
+// can own an item long before deciding whether/when to list it for sale.
+model Item {
+  id                   String         @id @default(cuid())
+  userId               String
+  user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brand                String?
+  color                String?
+  category             String?
+  size                 String?
+  condition            ItemCondition?
+  notableDetails       String?
+  acquisitionCostCents Int?
+  status               ItemStatus     @default(INVENTORY)
+  photos               ItemPhoto[]
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  @@index([userId])
+}
+
+model ItemPhoto {
+  id         String   @id @default(cuid())
+  itemId     String
+  item       Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  url        String
+  storageKey String
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@index([itemId])
 }

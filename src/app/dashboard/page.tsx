@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth, signOut } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateGoalProgress } from "@/server/services/goal.service";
@@ -8,10 +9,10 @@ export default async function DashboardPage() {
   const session = await auth();
   const userId = session!.user.id;
 
-  const goal = await prisma.goal.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-  });
+  const [goal, itemCount] = await Promise.all([
+    prisma.goal.findFirst({ where: { userId }, orderBy: { createdAt: "desc" } }),
+    prisma.item.count({ where: { userId } }),
+  ]);
 
   // No sales are tracked yet (that lands in a later phase), so earned
   // revenue is always zero for now — the pace math is still real, it just
@@ -72,8 +73,23 @@ export default async function DashboardPage() {
         </div>
       )}
 
+      <Link
+        href="/items"
+        className="flex items-center justify-between rounded-lg border border-gray-300 p-5 hover:bg-gray-50 dark:hover:bg-white/5"
+      >
+        <div>
+          <h2 className="text-sm font-medium">Inventory</h2>
+          <p className="text-sm text-gray-600">
+            {itemCount === 0
+              ? "No items yet — add the first thing you're thinking of selling."
+              : `${itemCount} item${itemCount === 1 ? "" : "s"} in inventory.`}
+          </p>
+        </div>
+        <span className="text-sm text-blue-600 underline dark:text-blue-400">Manage →</span>
+      </Link>
+
       <div className="rounded-lg border border-dashed border-gray-300 p-6 text-sm text-gray-500">
-        Inventory and listings will show up here in later phases.
+        Listings will show up here in a later phase.
       </div>
     </main>
   );

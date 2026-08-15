@@ -10,7 +10,9 @@ export const authConfig = {
   callbacks: {
     authorized: ({ auth, request }) => {
       const isLoggedIn = !!auth?.user;
-      const isProtected = request.nextUrl.pathname.startsWith("/dashboard");
+      const isProtected =
+        request.nextUrl.pathname.startsWith("/dashboard") ||
+        request.nextUrl.pathname.startsWith("/items");
       return isProtected ? isLoggedIn : true;
     },
   },
