@@ -124,9 +124,11 @@ export async function addManualComparableAction(
       condition: parsed.data.condition ?? null,
       recency: parsed.data.recency ?? null,
       // Not a model estimate — the user is the source, so there's no
-      // confidence score to assign. Manual comps are excluded from the
-      // "usable" count for the same reason (see isUsableComparable).
-      confidence: null,
+      // match confidence to assign, and nothing to attribute automated
+      // price evidence to either. Manual comps are excluded from the
+      // matchConfidence gate for the same reason (see isUsableComparable).
+      matchConfidence: null,
+      priceEvidence: null,
     },
   });
 

@@ -57,7 +57,7 @@ export function MarketResearch({
       {comparables.length > 0 && (
         <ul className="flex flex-col gap-2">
           {comparables.map((c) => {
-            const confidenceLabel = formatConfidence(c.confidence);
+            const confidenceLabel = formatConfidence(c.matchConfidence);
             return (
               <li
                 key={c.id}

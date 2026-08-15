@@ -204,6 +204,23 @@ enum ComparablePriceType {
   UNKNOWN
 }
 
+// Provenance of a comparable's priceCents, not a probability score — a price
+// is either backed by something deterministic we parsed, or it isn't. Kept
+// separate from matchConfidence (an AI judgment call) deliberately: a
+// well-matched listing can still have an unverifiable price, and a
+// perfectly-verified price is worthless if the listing itself is a bad
+// match. STRUCTURED_DATA/META_TAG/MICRODATA are the only values that should
+// ever accompany a non-null priceCents on a WEB_SEARCH comp (see
+// isUsableComparable in comparables.ts). Null for manual entries — same
+// rationale as matchConfidence being null there.
+enum ComparablePriceEvidence {
+  STRUCTURED_DATA
+  META_TAG
+  MICRODATA
+  UNVERIFIED
+  BLOCKED
+}
+
 // One research invocation (a single web-search call). Comparables accumulate
 // across runs (re-running adds to the set rather than replacing it), so this
 // is what "reopening an item does not trigger another paid call" actually
@@ -245,8 +262,14 @@ model ComparableListing {
   // Free text, deliberately not a Date — search snippets rarely give a real
   // date, and forcing one into a DateTime would fabricate false precision.
   recency     String?
-  // Null for manual entries (the user is the source, not a model estimate).
-  confidence  Float?
+  // How well this listing matches the item's attributes (brand/category/
+  // condition/etc.) — an AI judgment call. Null for manual entries (the user
+  // is the source, not a model estimate). Deliberately separate from
+  // priceEvidence — see that enum's doc comment.
+  matchConfidence Float?
+  // Deliberately separate from matchConfidence — see ComparablePriceEvidence.
+  // Null for manual entries (nothing to attribute automated evidence to).
+  priceEvidence   ComparablePriceEvidence?
   rawMetadata Json?
 
   createdAt DateTime @default(now())

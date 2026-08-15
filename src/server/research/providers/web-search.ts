@@ -6,7 +6,8 @@ import type {
   MarketResearchQuery,
   ComparableSearchResult,
 } from "../provider";
-import { comparableSearchResultSchema, MarketResearchProviderError } from "../provider";
+import { comparableCandidateSchema, MarketResearchProviderError } from "../provider";
+import { enrichComparables } from "../enrichment/enrich-comparables";
 
 // Unlike item analysis / photo coach, this task benefits from stronger
 // reasoning — constructing good search queries, judging real-world
@@ -17,11 +18,27 @@ import { comparableSearchResultSchema, MarketResearchProviderError } from "../pr
 // here means a wasted request (as happened with `effort` in Phase 3).
 const DEFAULT_MODEL = "claude-sonnet-5";
 const MODEL = process.env.MARKET_RESEARCH_AI_MODEL?.trim() || DEFAULT_MODEL;
-const MAX_TOKENS = 4096;
-const MAX_SEARCH_USES = 5;
+// Live testing during Phase 5.5 found web_search_20260209 is code-execution
+// mediated here (the model calls web_search() from inside a Python sandbox,
+// per Anthropic's dynamic-filtering variant), and that sandbox is stateless
+// across separate code_execution calls. Without being told this, the model
+// can lose track of results it already found and spiral into unproductive
+// debugging (retries, sleep() calls) once it hits friction — see the
+// instructions below, which target that behavior directly. This margin
+// above Phase 5's original 4096 is a safety net so a truncated response
+// doesn't masquerade as "the fix didn't work" — it is not itself the fix.
+const MAX_TOKENS = 6000;
+// Lower than Phase 5's original 5: discovery no longer has to spend search
+// calls hunting for a confirmable price (see comparableCandidateSchema's
+// doc comment) — its only job now is finding genuinely comparable listings,
+// which needs less search budget. Overridable for benchmarking against live
+// marketplaces without a code change.
+const DEFAULT_MAX_SEARCH_USES = 3;
+const MAX_SEARCH_USES =
+  Number(process.env.MARKET_RESEARCH_MAX_SEARCH_USES) || DEFAULT_MAX_SEARCH_USES;
 
 const responseSchema = z.object({
-  comparables: z.array(comparableSearchResultSchema),
+  comparables: z.array(comparableCandidateSchema),
 });
 
 function buildInstructions(query: MarketResearchQuery): string {
@@ -44,14 +61,19 @@ Use web search to find real, currently-listed or recently-sold items on public r
 For each comparable you find, report:
 - title: the listing's title as shown on the source
 - marketplace: which site it's from (e.g. "eBay", "Poshmark"), or null if unclear
-- priceCents: the price in cents, or null if you can't determine a real number
 - priceType: "SOLD" only if the source explicitly states this item sold or the listing is completed/sold (e.g. an eBay "Sold" listing showing a final sale price) — "ASKING" if it's a current active listing's asking price — "UNKNOWN" if you cannot tell. Never guess SOLD from an active listing's asking price.
 - url: the actual URL of the listing from your search results — never invent one
 - condition: the condition as described in that listing, in the seller's own words if possible, or null if not stated
 - recency: a short free-text description of how recent the listing/sale is if the source states one (e.g. "listed 3 days ago", "sold last month"), or null if not stated — do not invent a specific date you don't actually have
-- confidence: 0 to 1, how well this specific listing actually matches the item's attributes above. A partial match (e.g. right brand but different category, or condition not stated) should get a low score, not be excluded.
+- matchConfidence: 0 to 1, how well this specific listing actually matches the item's attributes above. A partial match (e.g. right brand but different category, or condition not stated) should get a low score, not be excluded.
 
-Only include listings you actually found via search — never fabricate a listing, price, or URL. It is expected and fine to return fewer results if genuinely comparable listings are hard to find; do not pad the list with weak matches just to reach a target count.`;
+Do not try to determine or report a price — that is verified separately from the page itself, not from search results. Focus your search effort on finding genuinely comparable listings and their URLs.
+
+Only include listings you actually found via search — never fabricate a listing or URL. It is expected and fine to return fewer results if genuinely comparable listings are hard to find; do not pad the list with weak matches just to reach a target count.
+
+Important about the search tool itself: each search may run in a fresh, isolated execution context, so a variable or result from one search call is not guaranteed to still be available afterward. Note down anything you want to keep (title, marketplace, url, condition, recency) as soon as a search returns it, in your own words — do not plan to go back and re-read a previous search's raw output later.
+
+You have a limited number of searches. The moment you run out, or a search call errors or fails for any reason, stop searching immediately and give your final answer using only the comparable listings you have already found and noted down. Do not retry a failed search, wait and try again, or spend time investigating why a search failed — a partial list, or even an empty one, is a completely valid answer, and is far better than spending your entire response troubleshooting the tool instead of answering.`;
 }
 
 export class WebSearchComparableProvider implements MarketResearchProvider {
@@ -89,6 +111,9 @@ export class WebSearchComparableProvider implements MarketResearchProvider {
         "The model's response didn't match the expected format.",
       );
     }
-    return response.parsed_output.comparables;
+    // Discovery only finds candidates; every candidate's price is fetched
+    // and verified independently here, concurrently, before anything is
+    // returned to the caller. See enrich-comparables.ts.
+    return enrichComparables(response.parsed_output.comparables);
   }
 }

@@ -23,7 +23,8 @@ function comp(overrides: Partial<ComparableSearchResult> = {}): ComparableSearch
     url: "https://poshmark.com/listing/abc123",
     condition: "Good",
     recency: "listed 3 days ago",
-    confidence: 0.8,
+    matchConfidence: 0.8,
+    priceEvidence: "STRUCTURED_DATA",
     ...overrides,
   };
 }
@@ -78,26 +79,36 @@ test("deduplicateAgainstExisting keeps everything when nothing overlaps", () => 
 
 // --- Quality thresholds ----------------------------------------------------
 
-test("isUsableComparable requires both a price and confidence at/above the bar for web-search comps", () => {
-  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, confidence: MIN_COMPARABLE_CONFIDENCE }), true);
-  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: null, confidence: 0.9 }), false);
-  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, confidence: null }), false);
-  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, confidence: MIN_COMPARABLE_CONFIDENCE - 0.01 }), false);
+test("isUsableComparable requires both a price and match confidence at/above the bar for web-search comps", () => {
+  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: MIN_COMPARABLE_CONFIDENCE, priceEvidence: "STRUCTURED_DATA" }), true);
+  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: null, matchConfidence: 0.9, priceEvidence: "STRUCTURED_DATA" }), false);
+  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: null, priceEvidence: "STRUCTURED_DATA" }), false);
+  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: MIN_COMPARABLE_CONFIDENCE - 0.01, priceEvidence: "STRUCTURED_DATA" }), false);
 });
 
-test("isUsableComparable trusts a manual comp with a price regardless of (null) confidence", () => {
-  assert.equal(isUsableComparable({ source: "MANUAL", priceCents: 2000, confidence: null }), true);
-  assert.equal(isUsableComparable({ source: "MANUAL", priceCents: null, confidence: null }), false);
+test("isUsableComparable requires trusted price evidence, not just a non-null price", () => {
+  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: 0.9, priceEvidence: "STRUCTURED_DATA" }), true);
+  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: 0.9, priceEvidence: "META_TAG" }), true);
+  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: 0.9, priceEvidence: "MICRODATA" }), true);
+  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: 0.9, priceEvidence: "UNVERIFIED" }), false);
+  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: 0.9, priceEvidence: "BLOCKED" }), false);
+  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: 0.9, priceEvidence: null }), false);
+});
+
+test("isUsableComparable trusts a manual comp with a price regardless of (null) match confidence or price evidence", () => {
+  assert.equal(isUsableComparable({ source: "MANUAL", priceCents: 2000, matchConfidence: null, priceEvidence: null }), true);
+  assert.equal(isUsableComparable({ source: "MANUAL", priceCents: null, matchConfidence: null, priceEvidence: null }), false);
 });
 
 test("assessComparableQuality: manual entries can push an otherwise-insufficient set over the threshold", () => {
   const weakAutomated = [
-    { source: "WEB_SEARCH" as const, priceCents: 1500, confidence: 0.2 },
+    { source: "WEB_SEARCH" as const, priceCents: 1500, matchConfidence: 0.2, priceEvidence: "STRUCTURED_DATA" },
   ];
   const manual = Array.from({ length: MIN_USABLE_COMPARABLES }, () => ({
     source: "MANUAL" as const,
     priceCents: 2000,
-    confidence: null,
+    matchConfidence: null,
+    priceEvidence: null,
   }));
   const result = assessComparableQuality([...weakAutomated, ...manual]);
   assert.equal(result.usableCount, MIN_USABLE_COMPARABLES);
@@ -106,8 +117,8 @@ test("assessComparableQuality: manual entries can push an otherwise-insufficient
 
 test("assessComparableQuality reports insufficient below the minimum usable count", () => {
   const comps = [
-    { source: "WEB_SEARCH" as const, priceCents: 2000, confidence: 0.9 },
-    { source: "WEB_SEARCH" as const, priceCents: 1800, confidence: 0.6 },
+    { source: "WEB_SEARCH" as const, priceCents: 2000, matchConfidence: 0.9, priceEvidence: "STRUCTURED_DATA" },
+    { source: "WEB_SEARCH" as const, priceCents: 1800, matchConfidence: 0.6, priceEvidence: "META_TAG" },
   ];
   const result = assessComparableQuality(comps);
   assert.equal(result.usableCount, 2);
@@ -120,7 +131,8 @@ test("assessComparableQuality reports sufficient exactly at the minimum usable c
   const comps = Array.from({ length: MIN_USABLE_COMPARABLES }, () => ({
     source: "WEB_SEARCH" as const,
     priceCents: 2000,
-    confidence: 0.9,
+    matchConfidence: 0.9,
+    priceEvidence: "STRUCTURED_DATA",
   }));
   const result = assessComparableQuality(comps);
   assert.equal(result.usableCount, MIN_USABLE_COMPARABLES);
@@ -131,11 +143,12 @@ test("assessComparableQuality: 10 found but only 2 reliable is still insufficien
   const weak = Array.from({ length: 8 }, () => ({
     source: "WEB_SEARCH" as const,
     priceCents: 1500,
-    confidence: 0.2,
+    matchConfidence: 0.2,
+    priceEvidence: "STRUCTURED_DATA",
   }));
   const strong = [
-    { source: "WEB_SEARCH" as const, priceCents: 2000, confidence: 0.9 },
-    { source: "WEB_SEARCH" as const, priceCents: 2100, confidence: 0.85 },
+    { source: "WEB_SEARCH" as const, priceCents: 2000, matchConfidence: 0.9, priceEvidence: "STRUCTURED_DATA" },
+    { source: "WEB_SEARCH" as const, priceCents: 2100, matchConfidence: 0.85, priceEvidence: "META_TAG" },
   ];
   const result = assessComparableQuality([...weak, ...strong]);
   assert.equal(result.totalCount, 10);
@@ -145,12 +158,23 @@ test("assessComparableQuality: 10 found but only 2 reliable is still insufficien
 
 test("assessComparableQuality ignores comps with unknown price even at high confidence", () => {
   const comps = [
-    { source: "WEB_SEARCH" as const, priceCents: null, confidence: 0.95 },
-    { source: "WEB_SEARCH" as const, priceCents: null, confidence: 0.95 },
-    { source: "WEB_SEARCH" as const, priceCents: null, confidence: 0.95 },
+    { source: "WEB_SEARCH" as const, priceCents: null, matchConfidence: 0.95, priceEvidence: null },
+    { source: "WEB_SEARCH" as const, priceCents: null, matchConfidence: 0.95, priceEvidence: null },
+    { source: "WEB_SEARCH" as const, priceCents: null, matchConfidence: 0.95, priceEvidence: null },
   ];
   const result = assessComparableQuality(comps);
   assert.equal(result.usableCount, 0);
+  assert.equal(result.sufficient, false);
+});
+
+test("assessComparableQuality treats an unverified/blocked price the same as a missing one, even at high confidence", () => {
+  const comps = [
+    { source: "WEB_SEARCH" as const, priceCents: 2000, matchConfidence: 0.95, priceEvidence: "UNVERIFIED" },
+    { source: "WEB_SEARCH" as const, priceCents: 2100, matchConfidence: 0.95, priceEvidence: "BLOCKED" },
+    { source: "WEB_SEARCH" as const, priceCents: 2200, matchConfidence: 0.95, priceEvidence: "STRUCTURED_DATA" },
+  ];
+  const result = assessComparableQuality(comps);
+  assert.equal(result.usableCount, 1);
   assert.equal(result.sufficient, false);
 });
 

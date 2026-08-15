@@ -106,25 +106,33 @@ export interface ComparableQualityAssessment {
   reason: string;
 }
 
+/** The only priceEvidence values that back a price with something we can actually point to. */
+const TRUSTED_PRICE_EVIDENCE = new Set<string>(["STRUCTURED_DATA", "META_TAG", "MICRODATA"]);
+
 interface QualityFields {
   source: "WEB_SEARCH" | "MANUAL";
   priceCents: number | null;
-  confidence: number | null;
+  matchConfidence: number | null;
+  priceEvidence: string | null;
 }
 
 /**
- * An automated comp only counts toward the trustworthy set if it has both a
- * real price and a confidence that clears the bar. A manual comp has no
- * confidence score by design (there's nothing to estimate — the user is
- * vouching for it directly), so it's gated on price alone: requiring an AI
- * confidence value from a user-entered row would make manual entry unable to
- * ever satisfy the threshold, defeating its purpose as a real override when
- * automated research comes up short.
+ * An automated comp only counts toward the trustworthy set if it has a real,
+ * verified price (priceEvidence backed by something deterministic — see
+ * enrichment/enrich-comparables.ts and ComparablePriceEvidence's doc comment
+ * in the Prisma schema, not just a non-null priceCents) and a match
+ * confidence that clears the bar. A manual comp has no match confidence or
+ * priceEvidence by design (there's nothing to estimate or verify — the user
+ * is vouching for it directly), so it's gated on price alone: requiring an
+ * AI confidence value or automated evidence from a user-entered row would
+ * make manual entry unable to ever satisfy the threshold, defeating its
+ * purpose as a real override when automated research comes up short.
  */
 export function isUsableComparable(comp: QualityFields): boolean {
   if (comp.priceCents === null) return false;
   if (comp.source === "MANUAL") return true;
-  return comp.confidence !== null && comp.confidence >= MIN_COMPARABLE_CONFIDENCE;
+  if (!comp.priceEvidence || !TRUSTED_PRICE_EVIDENCE.has(comp.priceEvidence)) return false;
+  return comp.matchConfidence !== null && comp.matchConfidence >= MIN_COMPARABLE_CONFIDENCE;
 }
 
 /**
@@ -159,7 +167,8 @@ export function mapComparablesToCreateData(itemId: string, results: ComparableSe
     url: r.url,
     condition: r.condition,
     recency: r.recency,
-    confidence: r.confidence,
+    matchConfidence: r.matchConfidence,
+    priceEvidence: r.priceEvidence,
     rawMetadata: r,
   }));
 }
