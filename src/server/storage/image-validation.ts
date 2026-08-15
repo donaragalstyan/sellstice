@@ -35,3 +35,17 @@ export function assertPhotoCountWithinLimit(existingCount: number, incomingCount
   }
   return { ok: true };
 }
+
+const CONTENT_TYPE_BY_EXTENSION: Record<string, (typeof ALLOWED_IMAGE_TYPES)[number]> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+};
+
+/** Storage keys carry the extension LocalImageStorage derived from the upload's content type. */
+export function inferImageMediaType(storageKey: string): (typeof ALLOWED_IMAGE_TYPES)[number] | null {
+  const extension = storageKey.split(".").pop()?.toLowerCase();
+  if (!extension) return null;
+  return CONTENT_TYPE_BY_EXTENSION[extension] ?? null;
+}

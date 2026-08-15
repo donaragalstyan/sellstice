@@ -74,6 +74,7 @@ model Item {
   acquisitionCostCents Int?
   status               ItemStatus     @default(INVENTORY)
   photos               ItemPhoto[]
+  aiAnalyses           ItemAIAnalysis[]
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
@@ -88,6 +89,40 @@ model ItemPhoto {
   storageKey String
   order      Int      @default(0)
   createdAt  DateTime @default(now())
+
+  @@index([itemId])
+}
+
+// Raw AI vision output, kept separate from Item's canonical fields so we
+// always know whether a value came from the model or from user confirmation.
+// Applying a suggestion copies it into Item explicitly (see appliedFields) —
+// nothing here is ever treated as ground truth on its own.
+model ItemAIAnalysis {
+  id     String @id @default(cuid())
+  itemId String
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  brandValue          String?
+  brandConfidence      Float?
+  colorValue           String?
+  colorConfidence      Float?
+  itemTypeValue        String?
+  itemTypeConfidence   Float?
+  categoryValue        String?
+  categoryConfidence   Float?
+  conditionValue       ItemCondition?
+  conditionConfidence  Float?
+
+  styleKeywords           String[]
+  visibleDetails          String[]
+  missingPhotoSuggestions String[]
+
+  // Which suggested fields the user has explicitly applied to the Item
+  // (e.g. "brand", "condition") — provenance for what's user-confirmed.
+  appliedFields String[]
+
+  modelId   String
+  createdAt DateTime @default(now())
 
   @@index([itemId])
 }

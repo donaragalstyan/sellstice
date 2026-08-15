@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   validateImageFile,
   assertPhotoCountWithinLimit,
+  inferImageMediaType,
   MAX_IMAGE_BYTES,
   MAX_PHOTOS_PER_ITEM,
 } from "./image-validation";
@@ -40,4 +41,16 @@ test("photo count limit allows filling up to the max", () => {
 test("photo count limit rejects going over the max", () => {
   const result = assertPhotoCountWithinLimit(MAX_PHOTOS_PER_ITEM - 1, 2);
   assert.equal(result.ok, false);
+});
+
+test("infers media type from known extensions", () => {
+  assert.equal(inferImageMediaType("uploads/abc/photo.jpg"), "image/jpeg");
+  assert.equal(inferImageMediaType("uploads/abc/photo.jpeg"), "image/jpeg");
+  assert.equal(inferImageMediaType("uploads/abc/photo.png"), "image/png");
+  assert.equal(inferImageMediaType("uploads/abc/photo.webp"), "image/webp");
+});
+
+test("infers null media type for unknown or missing extensions", () => {
+  assert.equal(inferImageMediaType("uploads/abc/photo.gif"), null);
+  assert.equal(inferImageMediaType("uploads/abc/noextension"), null);
 });

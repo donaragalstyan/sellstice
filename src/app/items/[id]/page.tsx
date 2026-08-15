@@ -7,6 +7,7 @@ import { ItemForm } from "../item-form";
 import { DeleteItemButton } from "./delete-item-button";
 import { PhotoGallery } from "./photo-gallery";
 import { PhotoUploadForm } from "./photo-upload-form";
+import { AiSuggestions } from "./ai-suggestions";
 
 export default async function ItemDetailPage({
   params,
@@ -26,6 +27,11 @@ export default async function ItemDetailPage({
     notFound();
   }
 
+  const latestAnalysis = await prisma.itemAIAnalysis.findFirst({
+    where: { itemId: item.id },
+    orderBy: { createdAt: "desc" },
+  });
+
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
       <div className="flex items-start justify-between">
@@ -43,6 +49,8 @@ export default async function ItemDetailPage({
         <PhotoGallery photos={item.photos} />
         <PhotoUploadForm itemId={item.id} />
       </section>
+
+      <AiSuggestions itemId={item.id} photoCount={item.photos.length} latestAnalysis={latestAnalysis} />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-sm font-medium text-gray-600">Details</h2>
