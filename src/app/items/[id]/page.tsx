@@ -9,6 +9,7 @@ import { PhotoGallery } from "./photo-gallery";
 import { PhotoUploadForm } from "./photo-upload-form";
 import { AiSuggestions } from "./ai-suggestions";
 import { PhotoCoach } from "./photo-coach";
+import { MarketResearch } from "./market-research";
 
 export default async function ItemDetailPage({
   params,
@@ -39,6 +40,11 @@ export default async function ItemDetailPage({
     include: { scores: { include: { photo: true } } },
   });
 
+  const comparables = await prisma.comparableListing.findMany({
+    where: { itemId: item.id },
+    orderBy: { createdAt: "desc" },
+  });
+
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
       <div className="flex items-start justify-between">
@@ -63,6 +69,12 @@ export default async function ItemDetailPage({
         itemId={item.id}
         photoCount={item.photos.length}
         latestAnalysis={latestPhotoCoachAnalysis}
+      />
+
+      <MarketResearch
+        itemId={item.id}
+        item={{ brand: item.brand, category: item.category }}
+        comparables={comparables}
       />
 
       <section className="flex flex-col gap-3">

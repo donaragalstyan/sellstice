@@ -43,3 +43,19 @@ export const itemSchema = z.object({
     .max(1_000_000, "That amount looks too large")
     .optional(),
 });
+
+export const COMPARABLE_PRICE_TYPES = ["ASKING", "SOLD", "UNKNOWN"] as const;
+
+export const manualComparableSchema = z.object({
+  title: z.string().trim().min(1, "Enter a title").max(200),
+  marketplace: z.string().trim().max(100).optional(),
+  price: z.coerce
+    .number()
+    .nonnegative("Enter a value of $0 or more")
+    .max(1_000_000, "That amount looks too large")
+    .optional(),
+  priceType: z.enum(COMPARABLE_PRICE_TYPES).default("UNKNOWN"),
+  url: z.string().trim().max(2000).url("Enter a valid URL").optional().or(z.literal("")),
+  condition: z.string().trim().max(100).optional(),
+  recency: z.string().trim().max(100).optional(),
+});

@@ -76,6 +76,8 @@ model Item {
   photos               ItemPhoto[]
   aiAnalyses           ItemAIAnalysis[]
   photoCoachAnalyses   PhotoCoachAnalysis[]
+  comparableListings   ComparableListing[]
+  researchRuns         ComparableResearchRun[]
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
@@ -187,4 +189,68 @@ model PhotoCoachPhotoScore {
 
   @@index([analysisId])
   @@index([photoId])
+}
+
+enum ComparableSource {
+  WEB_SEARCH
+  MANUAL
+}
+
+// Never SOLD unless the source explicitly said so — see the WebSearchComparableProvider
+// prompt. UNKNOWN is a valid, expected outcome, not a fallback to avoid.
+enum ComparablePriceType {
+  ASKING
+  SOLD
+  UNKNOWN
+}
+
+// One research invocation (a single web-search call). Comparables accumulate
+// across runs (re-running adds to the set rather than replacing it), so this
+// is what "reopening an item does not trigger another paid call" actually
+// caches against — the run's createdAt drives the cooldown, and its
+// querySnapshot records exactly what attributes were searched at the time.
+model ComparableResearchRun {
+  id     String @id @default(cuid())
+  itemId String
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  querySnapshot Json
+  resultCount   Int
+
+  createdAt DateTime @default(now())
+  listings  ComparableListing[]
+
+  @@index([itemId])
+}
+
+// A single comparable listing, normalized regardless of whether it came from
+// automated search or manual entry. Every field except title is nullable —
+// a comp with partial/unknown data is still valid and gets stored; it's the
+// deterministic quality assessment (see comparables.ts) that decides whether
+// the overall set is trustworthy enough to lean on, not this table.
+model ComparableListing {
+  id            String                 @id @default(cuid())
+  itemId        String
+  item          Item                   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  researchRunId String?
+  researchRun   ComparableResearchRun? @relation(fields: [researchRunId], references: [id], onDelete: Cascade)
+
+  source      ComparableSource
+  title       String
+  marketplace String?
+  priceCents  Int?
+  priceType   ComparablePriceType @default(UNKNOWN)
+  url         String?
+  condition   String?
+  // Free text, deliberately not a Date — search snippets rarely give a real
+  // date, and forcing one into a DateTime would fabricate false precision.
+  recency     String?
+  // Null for manual entries (the user is the source, not a model estimate).
+  confidence  Float?
+  rawMetadata Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([itemId])
+  @@index([researchRunId])
 }
