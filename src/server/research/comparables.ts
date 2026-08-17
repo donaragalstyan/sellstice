@@ -1,8 +1,8 @@
-import { WebSearchComparableProvider } from "./providers/web-search";
+import { BraveDiscoveryComparableProvider } from "./providers/brave-discovery";
 import { getCooldownRemainingMs } from "@/server/ai/cooldown";
 import type { ComparableSearchResult, MarketResearchQuery } from "./provider";
 
-const provider = new WebSearchComparableProvider();
+const provider = new BraveDiscoveryComparableProvider();
 
 export async function findComparableListings(
   query: MarketResearchQuery,
