@@ -57,8 +57,13 @@ export async function discoverCandidates(
       return;
     }
     if (provider.bestEffort) return;
+    // Static message, dynamic values as separate args (not interpolated) —
+    // matches market-research-actions.ts's existing console.error pattern,
+    // and avoids a log-forging vector if a marketplace id or error message
+    // ever contained embedded newlines.
     console.error(
-      `Discovery provider "${provider.marketplace}" failed:`,
+      "Discovery provider failed:",
+      provider.marketplace,
       outcome.reason instanceof Error ? outcome.reason.message : outcome.reason,
     );
   });
