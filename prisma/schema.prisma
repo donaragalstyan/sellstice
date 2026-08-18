@@ -84,11 +84,14 @@ model Item {
   @@index([userId])
 }
 
+// No `url` column: photos are served only through the authenticated
+// /api/photos/[id] route, which derives the URL from this row's id and
+// looks up storageKey itself — storing a public URL here would either go
+// stale or (if kept in sync) be pure redundancy with `id`.
 model ItemPhoto {
   id         String   @id @default(cuid())
   itemId     String
   item       Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  url        String
   storageKey String
   order      Int      @default(0)
   createdAt  DateTime @default(now())

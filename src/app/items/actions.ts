@@ -40,7 +40,7 @@ function validateUploadedFiles(files: File[]): { error: string | null } {
 // order matters here: we validate before creating any DB rows, specifically
 // so a bad file can't leave an orphaned Item behind.
 async function saveUploadedPhotos(files: File[], folder: string, startOrder: number) {
-  const saved: { url: string; storageKey: string; order: number }[] = [];
+  const saved: { storageKey: string; order: number }[] = [];
   for (const [index, file] of files.entries()) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const savedImage = await imageStorage.save({ buffer, contentType: file.type, folder });
@@ -162,35 +162,58 @@ export async function addPhotosAction(
   return { error: null };
 }
 
-export async function deletePhotoAction(photoId: string): Promise<void> {
-  const session = await auth();
-  if (!session?.user?.id) return;
-
+// Ownership-checked core, factored out of deletePhotoAction so cross-user
+// authorization can be tested directly with an explicit userId — no auth()
+// mocking or Next.js request/navigation context required (revalidatePath()
+// needs a live Next request context, so it deliberately stays out of this
+// function and lives in the thin action wrapper below instead). Returns the
+// deleted photo's itemId, or null if nothing was deleted — the
+// "unauthorized/not found" case silently no-ops by design (see the header
+// note on deletePhotoAction for why callers don't get an error message).
+export async function deletePhotoForUser(photoId: string, userId: string): Promise<string | null> {
   const photo = await prisma.itemPhoto.findUnique({
     where: { id: photoId },
     include: { item: true },
   });
-  if (!photo || photo.item.userId !== session.user.id) return;
+  if (!photo || photo.item.userId !== userId) return null;
 
   await prisma.itemPhoto.delete({ where: { id: photoId } });
   await imageStorage.delete(photo.storageKey);
 
-  revalidatePath(`/items/${photo.itemId}`);
+  return photo.itemId;
+}
+
+export async function deletePhotoAction(photoId: string): Promise<void> {
+  const session = await auth();
+  if (!session?.user?.id) return;
+  const itemId = await deletePhotoForUser(photoId, session.user.id);
+  if (itemId) revalidatePath(`/items/${itemId}`);
+}
+
+// Same split as deletePhotoForUser above — testable without auth()/Next
+// request context. The redirect() on a successful delete only happens in
+// deleteItemAction itself, so calling this directly (e.g. for an
+// unauthorized cross-user attempt, which returns false before any mutation)
+// never triggers Next.js's redirect-via-throw behavior.
+export async function deleteItemForUser(itemId: string, userId: string): Promise<boolean> {
+  const item = await prisma.item.findUnique({
+    where: { id: itemId },
+    include: { photos: true },
+  });
+  if (!item || item.userId !== userId) return false;
+
+  await prisma.item.delete({ where: { id: itemId } });
+  await Promise.all(item.photos.map((photo) => imageStorage.delete(photo.storageKey)));
+
+  return true;
 }
 
 export async function deleteItemAction(itemId: string): Promise<void> {
   const session = await auth();
   if (!session?.user?.id) return;
-
-  const item = await prisma.item.findUnique({
-    where: { id: itemId },
-    include: { photos: true },
-  });
-  if (!item || item.userId !== session.user.id) return;
-
-  await prisma.item.delete({ where: { id: itemId } });
-  await Promise.all(item.photos.map((photo) => imageStorage.delete(photo.storageKey)));
-
-  revalidatePath("/items");
-  redirect("/items");
+  const deleted = await deleteItemForUser(itemId, session.user.id);
+  if (deleted) {
+    revalidatePath("/items");
+    redirect("/items");
+  }
 }

@@ -1,10 +1,9 @@
 "use server";
 
-import { readFile } from "node:fs/promises";
-import path from "node:path";
 import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { imageStorage } from "@/server/storage";
 import { inferImageMediaType } from "@/server/storage/image-validation";
 import {
   analyzePhotoCoach,
@@ -56,7 +55,7 @@ export async function analyzePhotoCoachAction(itemId: string): Promise<PhotoCoac
         if (!mediaType) {
           throw new Error(`Unsupported stored image type for photo ${photo.id}`);
         }
-        const buffer = await readFile(path.join(process.cwd(), "public", photo.storageKey));
+        const buffer = await imageStorage.read(photo.storageKey);
         return { base64: buffer.toString("base64"), mediaType };
       }),
     );

@@ -5,7 +5,6 @@ import { deletePhotoAction } from "../actions";
 
 interface Photo {
   id: string;
-  url: string;
 }
 
 export function PhotoGallery({ photos }: { photos: Photo[] }) {
@@ -20,7 +19,7 @@ export function PhotoGallery({ photos }: { photos: Photo[] }) {
       {photos.map((photo) => (
         <li key={photo.id} className="group relative aspect-square overflow-hidden rounded-md bg-gray-100 dark:bg-white/10">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={photo.url} alt="" className="h-full w-full object-cover" />
+          <img src={`/api/photos/${photo.id}`} alt="" className="h-full w-full object-cover" />
           <button
             type="button"
             disabled={pending}

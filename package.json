@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "find src -name '*.test.ts' | xargs node --import tsx --test"
+    "test": "find src -name '*.test.ts' | xargs node --env-file=.env --import tsx --test"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.117.1",

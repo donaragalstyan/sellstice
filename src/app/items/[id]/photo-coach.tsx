@@ -71,7 +71,11 @@ export function PhotoCoach({
               <li key={s.id} className="flex flex-col gap-1">
                 <div className="relative aspect-square overflow-hidden rounded-md bg-gray-100 dark:bg-white/10">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={s.photo.url} alt="" className="h-full w-full object-cover" />
+                  <img
+                    src={`/api/photos/${s.photo.id}`}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
                   <span className="absolute top-1 left-1 rounded bg-black/70 px-1.5 py-0.5 text-xs font-medium text-white">
                     {s.score.toFixed(1)}
                   </span>

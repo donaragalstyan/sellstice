@@ -47,7 +47,7 @@ export default async function ItemsPage() {
                   {item.photos[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
-                      src={item.photos[0].url}
+                      src={`/api/photos/${item.photos[0].id}`}
                       alt={getItemDisplayLabel(item)}
                       className="h-full w-full object-cover"
                     />

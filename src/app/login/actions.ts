@@ -4,6 +4,7 @@ import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
 import { signIn } from "@/lib/auth";
 import { credentialsSchema } from "@/lib/validation";
+import { getSafeRedirectPath } from "@/lib/safe-redirect";
 
 export type LoginState = { error: string | null };
 
@@ -33,5 +34,5 @@ export async function loginAction(
     throw err;
   }
 
-  redirect((formData.get("callbackUrl") as string) || "/dashboard");
+  redirect(getSafeRedirectPath(formData.get("callbackUrl")));
 }
