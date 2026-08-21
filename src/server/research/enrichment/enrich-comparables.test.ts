@@ -30,40 +30,45 @@ test("a candidate with no URL short-circuits to UNVERIFIED without fetching", as
   assert.equal(fetchCalls, 0);
   assert.equal(result.priceCents, null);
   assert.equal(result.priceEvidence, "UNVERIFIED");
+  assert.match(result.priceEvidenceDetail ?? "", /no listing URL/);
 });
 
-test("a successfully fetched and extracted price becomes the result's priceCents", async () => {
+test("a successfully fetched and extracted price becomes the result's priceCents, with no evidence detail to explain", async () => {
   const [result] = await enrichComparables([candidate()], {
     fetchHtml: async () => ({ status: "ok", html: "<html></html>", finalUrl: "x" }),
     extract: () => ({ evidence: "STRUCTURED_DATA", priceCents: 4199, currency: "USD" }),
   });
   assert.equal(result.priceCents, 4199);
   assert.equal(result.priceEvidence, "STRUCTURED_DATA");
+  assert.equal(result.priceEvidenceDetail, null);
 });
 
-test("a blocked fetch yields BLOCKED evidence and a null price", async () => {
+test("a blocked fetch yields BLOCKED evidence, a null price, and preserves the block reason", async () => {
   const [result] = await enrichComparables([candidate()], {
     fetchHtml: async () => ({ status: "blocked", reason: "HTTP 403" }),
   });
   assert.equal(result.priceCents, null);
   assert.equal(result.priceEvidence, "BLOCKED");
+  assert.equal(result.priceEvidenceDetail, "HTTP 403");
 });
 
-test("a fetch error yields UNVERIFIED, not BLOCKED", async () => {
+test("a fetch error yields UNVERIFIED, not BLOCKED, and preserves the error reason", async () => {
   const [result] = await enrichComparables([candidate()], {
     fetchHtml: async () => ({ status: "error", reason: "timed out" }),
   });
   assert.equal(result.priceCents, null);
   assert.equal(result.priceEvidence, "UNVERIFIED");
+  assert.equal(result.priceEvidenceDetail, "timed out");
 });
 
-test("a successful fetch with no verifiable price yields UNVERIFIED", async () => {
+test("a successful fetch with no verifiable price yields UNVERIFIED and preserves extract-price's reason", async () => {
   const [result] = await enrichComparables([candidate()], {
     fetchHtml: async () => ({ status: "ok", html: "<html></html>", finalUrl: "x" }),
     extract: () => ({ evidence: "UNVERIFIED", priceCents: null, reason: "nothing found" }),
   });
   assert.equal(result.priceCents, null);
   assert.equal(result.priceEvidence, "UNVERIFIED");
+  assert.equal(result.priceEvidenceDetail, "nothing found");
 });
 
 test("an unexpected throw from fetchHtml is absorbed as UNVERIFIED and does not sink the batch", async () => {
@@ -130,4 +135,59 @@ test("respects the configured concurrency limit", async () => {
 test("empty candidate list resolves to an empty array", async () => {
   const results = await enrichComparables([]);
   assert.deepEqual(results, []);
+});
+
+// --- Never invent a price (Phase 10.4 audit) ------------------------------
+//
+// enrichComparables is the sole place a final ComparableSearchResult's
+// priceCents is allowed to come from (see this file's own doc comment above)
+// — every exit path must either carry a real extracted price with trusted
+// evidence, or be null. These pin that invariant down as an executable
+// check rather than leaving it as a comment claim.
+
+test("every non-null priceCents is paired with trusted evidence, on a mixed batch of every outcome", async () => {
+  const candidates = [
+    candidate({ title: "no url", url: null }),
+    candidate({ title: "blocked", url: "https://a.example/1" }),
+    candidate({ title: "fetch error", url: "https://b.example/1" }),
+    candidate({ title: "unverified extraction", url: "https://c.example/1" }),
+    candidate({ title: "verified", url: "https://d.example/1" }),
+    candidate({ title: "throws", url: "https://e.example/1" }),
+  ];
+  const TRUSTED = new Set(["STRUCTURED_DATA", "META_TAG", "MICRODATA"]);
+  const results = await enrichComparables(candidates, {
+    fetchHtml: async (url) => {
+      if (url.includes("a.example")) return { status: "blocked", reason: "HTTP 403" };
+      if (url.includes("b.example")) return { status: "error", reason: "timed out" };
+      if (url.includes("e.example")) throw new Error("boom");
+      return { status: "ok", html: url, finalUrl: url };
+    },
+    extract: (html) =>
+      html.includes("d.example")
+        ? { evidence: "STRUCTURED_DATA", priceCents: 3000, currency: "USD" }
+        : { evidence: "UNVERIFIED", priceCents: null, reason: "no price found" },
+  });
+
+  for (const result of results) {
+    if (result.priceCents !== null) {
+      assert.ok(
+        TRUSTED.has(result.priceEvidence),
+        `${result.title}: priceCents ${result.priceCents} must not stand without trusted evidence (got ${result.priceEvidence})`,
+      );
+    }
+  }
+  // Sanity check the batch actually exercised both outcomes, not just nulls.
+  assert.equal(results.filter((r) => r.priceCents !== null).length, 1);
+  assert.equal(results.find((r) => r.title === "verified")?.priceCents, 3000);
+});
+
+test("an unexpected throw is absorbed as UNVERIFIED with the error message preserved as evidence detail", async () => {
+  const [result] = await enrichComparables([candidate()], {
+    fetchHtml: async () => {
+      throw new Error("boom");
+    },
+  });
+  assert.equal(result.priceCents, null);
+  assert.equal(result.priceEvidence, "UNVERIFIED");
+  assert.match(result.priceEvidenceDetail ?? "", /boom/);
 });

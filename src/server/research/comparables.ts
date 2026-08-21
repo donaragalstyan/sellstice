@@ -251,6 +251,7 @@ export function mapComparablesToCreateData(itemId: string, results: ComparableSe
     recency: r.recency,
     matchConfidence: r.matchConfidence,
     priceEvidence: r.priceEvidence,
+    priceEvidenceDetail: r.priceEvidenceDetail,
     imageUrl: r.imageUrl,
     visualSimilarity: r.visualSimilarity,
     rawMetadata: r,

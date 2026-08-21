@@ -19,6 +19,7 @@ function enrichWith(imageUrl: string | null) {
       ...c,
       priceCents: 2500,
       priceEvidence: "STRUCTURED_DATA" as const,
+      priceEvidenceDetail: null,
       imageUrl,
       visualSimilarity: null,
     }));
@@ -46,6 +47,7 @@ test("full pipeline merges enrichment's price with matching's judgment", async (
       ...c,
       priceCents: 2500,
       priceEvidence: "STRUCTURED_DATA" as const,
+      priceEvidenceDetail: null,
       visualSimilarity: null,
     }));
   const match = async (): Promise<MatchJudgment[]> => [
@@ -70,7 +72,7 @@ test("full pipeline merges enrichment's price with matching's judgment", async (
 test("passes the discovery snippet through to the matching step", async () => {
   const discover = async (): Promise<DiscoveredCandidate[]> => [discovered({ snippet: "size M, worn once" })];
   const enrich = async (candidates: ComparableCandidate[]): Promise<ComparableSearchResult[]> =>
-    candidates.map((c) => ({ ...c, priceCents: null, priceEvidence: "UNVERIFIED" as const, visualSimilarity: null }));
+    candidates.map((c) => ({ ...c, priceCents: null, priceEvidence: "UNVERIFIED" as const, priceEvidenceDetail: null, visualSimilarity: null }));
 
   let receivedSnippet: string | null | undefined;
   const match = async (_q: MarketResearchQuery, candidates: { snippet: string | null }[]): Promise<MatchJudgment[]> => {
@@ -89,7 +91,7 @@ test("empty discovery result skips enrichment and matching entirely", async () =
   const discover = async (): Promise<DiscoveredCandidate[]> => [];
   const enrich = async (candidates: ComparableCandidate[]): Promise<ComparableSearchResult[]> => {
     enrichCalled = true;
-    return candidates.map((c) => ({ ...c, priceCents: null, priceEvidence: "UNVERIFIED" as const, visualSimilarity: null }));
+    return candidates.map((c) => ({ ...c, priceCents: null, priceEvidence: "UNVERIFIED" as const, priceEvidenceDetail: null, visualSimilarity: null }));
   };
   const match = async (): Promise<MatchJudgment[]> => {
     matchCalled = true;
@@ -107,7 +109,7 @@ test("empty discovery result skips enrichment and matching entirely", async () =
 test("a matching-step failure propagates out of findComparables", async () => {
   const discover = async (): Promise<DiscoveredCandidate[]> => [discovered()];
   const enrich = async (candidates: ComparableCandidate[]): Promise<ComparableSearchResult[]> =>
-    candidates.map((c) => ({ ...c, priceCents: null, priceEvidence: "UNVERIFIED" as const, visualSimilarity: null }));
+    candidates.map((c) => ({ ...c, priceCents: null, priceEvidence: "UNVERIFIED" as const, priceEvidenceDetail: null, visualSimilarity: null }));
   const match = async (): Promise<MatchJudgment[]> => {
     throw new Error("matching failed");
   };
@@ -294,6 +296,7 @@ test("caps the visual shortlist at 10 candidates, preferring the highest Stage 1
       ...c,
       priceCents: 2500,
       priceEvidence: "STRUCTURED_DATA" as const,
+      priceEvidenceDetail: null,
       imageUrl: String(i),
       visualSimilarity: null,
     }));

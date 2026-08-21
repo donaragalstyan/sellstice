@@ -29,6 +29,17 @@ const TIER_BADGE: Record<ComparableTier, { text: string; className: string }> = 
   WEAK: { text: "Weak match", className: "text-gray-500 dark:text-gray-400" },
 };
 
+// Short label for how a price was (or wasn't) verified — priceEvidenceDetail
+// (Phase 10.4), when present, goes in the label's `title` so the specific
+// reason is a hover away without cluttering the row.
+const PRICE_EVIDENCE_BADGE: Record<string, { text: string; className: string }> = {
+  STRUCTURED_DATA: { text: "Verified", className: "text-green-700 dark:text-green-400" },
+  META_TAG: { text: "Verified", className: "text-green-700 dark:text-green-400" },
+  MICRODATA: { text: "Verified", className: "text-green-700 dark:text-green-400" },
+  UNVERIFIED: { text: "Unverified", className: "text-gray-500 dark:text-gray-400" },
+  BLOCKED: { text: "Blocked", className: "text-gray-500 dark:text-gray-400" },
+};
+
 export function MarketResearch({
   itemId,
   item,
@@ -108,11 +119,19 @@ export function MarketResearch({
                     {SOURCE_BADGE[c.source] ?? c.source}
                   </span>
                   {c.marketplace && <span>{c.marketplace}</span>}
-                  <span>
+                  <span title={c.priceEvidenceDetail ?? undefined}>
                     {c.priceCents !== null
                       ? `${formatCents(c.priceCents)} · ${PRICE_TYPE_BADGE[c.priceType] ?? c.priceType}`
                       : "Price unknown"}
                   </span>
+                  {c.priceEvidence && (
+                    <span
+                      className={PRICE_EVIDENCE_BADGE[c.priceEvidence]?.className}
+                      title={c.priceEvidenceDetail ?? undefined}
+                    >
+                      {PRICE_EVIDENCE_BADGE[c.priceEvidence]?.text ?? c.priceEvidence}
+                    </span>
+                  )}
                   {c.condition && <span>Condition: {c.condition}</span>}
                   {c.recency && <span>{c.recency}</span>}
                   <span className={tierBadge.className}>{tierBadge.text}</span>

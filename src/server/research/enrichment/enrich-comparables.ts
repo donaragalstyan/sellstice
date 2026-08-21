@@ -24,15 +24,36 @@ async function enrichOne(
   // providers/brave-discovery.ts), never enrichment's, same
   // placeholder-then-overwrite pattern as matchConfidence.
   if (candidate.url === null) {
-    return { ...candidate, priceCents: null, priceEvidence: "UNVERIFIED", imageUrl: null, visualSimilarity: null };
+    return {
+      ...candidate,
+      priceCents: null,
+      priceEvidence: "UNVERIFIED",
+      priceEvidenceDetail: "candidate has no listing URL to verify a price against",
+      imageUrl: null,
+      visualSimilarity: null,
+    };
   }
   try {
     const fetchResult = await fetchHtml(candidate.url);
     if (fetchResult.status === "blocked") {
-      return { ...candidate, priceCents: null, priceEvidence: "BLOCKED", imageUrl: null, visualSimilarity: null };
+      return {
+        ...candidate,
+        priceCents: null,
+        priceEvidence: "BLOCKED",
+        priceEvidenceDetail: fetchResult.reason,
+        imageUrl: null,
+        visualSimilarity: null,
+      };
     }
     if (fetchResult.status === "error") {
-      return { ...candidate, priceCents: null, priceEvidence: "UNVERIFIED", imageUrl: null, visualSimilarity: null };
+      return {
+        ...candidate,
+        priceCents: null,
+        priceEvidence: "UNVERIFIED",
+        priceEvidenceDetail: fetchResult.reason,
+        imageUrl: null,
+        visualSimilarity: null,
+      };
     }
     // Image extraction reads the same already-fetched HTML — no extra
     // request — and never blocks or downgrades the price result even if it
@@ -40,20 +61,35 @@ async function enrichOne(
     const imageUrl = extractImage(fetchResult.html, fetchResult.finalUrl);
     const extraction = extract(fetchResult.html);
     if (extraction.evidence === "UNVERIFIED") {
-      return { ...candidate, priceCents: null, priceEvidence: "UNVERIFIED", imageUrl, visualSimilarity: null };
+      return {
+        ...candidate,
+        priceCents: null,
+        priceEvidence: "UNVERIFIED",
+        priceEvidenceDetail: extraction.reason,
+        imageUrl,
+        visualSimilarity: null,
+      };
     }
     return {
       ...candidate,
       priceCents: extraction.priceCents,
       priceEvidence: extraction.evidence,
+      priceEvidenceDetail: null,
       imageUrl,
       visualSimilarity: null,
     };
-  } catch {
+  } catch (err) {
     // An unexpected failure here must not sink the rest of the batch, and
     // must never leave the AI's own unverified priceCents guess standing in
     // for a real one.
-    return { ...candidate, priceCents: null, priceEvidence: "UNVERIFIED", imageUrl: null, visualSimilarity: null };
+    return {
+      ...candidate,
+      priceCents: null,
+      priceEvidence: "UNVERIFIED",
+      priceEvidenceDetail: `unexpected error during enrichment: ${err instanceof Error ? err.message : "unknown error"}`,
+      imageUrl: null,
+      visualSimilarity: null,
+    };
   }
 }
 

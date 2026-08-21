@@ -29,6 +29,7 @@ function comp(overrides: Partial<ComparableSearchResult> = {}): ComparableSearch
     recency: "listed 3 days ago",
     matchConfidence: 0.8,
     priceEvidence: "STRUCTURED_DATA",
+    priceEvidenceDetail: null,
     imageUrl: null,
     visualSimilarity: null,
     ...overrides,

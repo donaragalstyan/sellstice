@@ -273,6 +273,13 @@ model ComparableListing {
   // Deliberately separate from matchConfidence — see ComparablePriceEvidence.
   // Null for manual entries (nothing to attribute automated evidence to).
   priceEvidence   ComparablePriceEvidence?
+  // Human-readable reason behind priceEvidence when it isn't a trusted,
+  // verified value (e.g. why extraction called a page UNVERIFIED, or what
+  // BLOCKED it) — the same `reason` string extract-price.ts/fetch-listing.ts
+  // already compute internally, previously discarded rather than persisted
+  // (Phase 10.4). Null for a trusted price (STRUCTURED_DATA/META_TAG/
+  // MICRODATA) and for manual entries — there's nothing to explain.
+  priceEvidenceDetail String?
   // The candidate listing's own photo URL, deterministically extracted
   // during enrichment (Phase 10.1) — null if the page published none.
   imageUrl String?

@@ -62,6 +62,12 @@ export type ComparableCandidate = z.infer<typeof comparableCandidateSchema> & {
 export type ComparableSearchResult = ComparableCandidate & {
   priceCents: number | null;
   priceEvidence: (typeof COMPARABLE_PRICE_EVIDENCE)[number];
+  // Why priceEvidence isn't a trusted value — e.g. "multiple distinct prices
+  // found in structured data" or "HTTP 403" — the reason enrichment already
+  // computes internally but previously discarded. Null whenever priceEvidence
+  // is trusted (STRUCTURED_DATA/META_TAG/MICRODATA): a positive result speaks
+  // for itself and needs no explanation.
+  priceEvidenceDetail: string | null;
   visualSimilarity: number | null;
 };
 
