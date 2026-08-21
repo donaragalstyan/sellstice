@@ -41,6 +41,24 @@ function toPlaceholderCandidate(discovered: DiscoveredCandidate): ComparableCand
   };
 }
 
+/**
+ * Cross-checks Stage 1's priceType judgment against the page's own
+ * deterministic availability signal (extract-price.ts, via enrichComparables)
+ * — matchCandidates only ever sees a title/snippet, so a SOLD claim there is
+ * still just a text judgment, exactly what comparableCandidateSchema's
+ * priceType doc comment warns against trusting on its own. Only downgrades
+ * on an actual contradiction (page confirms still available); a SOLD claim
+ * with no availability signal at all (most marketplaces are best-effort or
+ * blocked — see the Discovery & Matching tab) is left alone rather than
+ * blanket-discarded for lack of evidence either way.
+ */
+function reconcilePriceType(comp: ComparableSearchResult): ComparableSearchResult {
+  if (comp.priceType === "SOLD" && comp.availabilitySignal === "AVAILABLE") {
+    return { ...comp, priceType: "UNKNOWN" };
+  }
+  return comp;
+}
+
 // Stage 2 (visual) shortlist bounds — see match-candidates-visual.ts. Below
 // MIN_STAGE1_CONFIDENCE_FOR_VISUAL_CHECK, min(stage1, visual) could never
 // reach the 0.5 usability bar (comparables.ts) anyway, so there's no reason
@@ -182,7 +200,7 @@ export class BraveDiscoveryComparableProvider implements MarketResearchProvider 
 
     // Unconditional overwrite of the placeholder judgment fields with the
     // real ones — see toPlaceholderCandidate's doc comment.
-    const withStage1 = enriched.map((c, i) => ({ ...c, ...judgments[i] }));
+    const withStage1 = enriched.map((c, i) => reconcilePriceType({ ...c, ...judgments[i] }));
 
     return this.applyVisualConfirmation(withStage1, itemPhotos);
   }

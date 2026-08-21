@@ -36,11 +36,30 @@ test("a candidate with no URL short-circuits to UNVERIFIED without fetching", as
 test("a successfully fetched and extracted price becomes the result's priceCents, with no evidence detail to explain", async () => {
   const [result] = await enrichComparables([candidate()], {
     fetchHtml: async () => ({ status: "ok", html: "<html></html>", finalUrl: "x" }),
-    extract: () => ({ evidence: "STRUCTURED_DATA", priceCents: 4199, currency: "USD" }),
+    extract: () => ({ evidence: "STRUCTURED_DATA", priceCents: 4199, currency: "USD", availability: "AVAILABLE" }),
   });
   assert.equal(result.priceCents, 4199);
   assert.equal(result.priceEvidence, "STRUCTURED_DATA");
   assert.equal(result.priceEvidenceDetail, null);
+  assert.equal(result.availabilitySignal, "AVAILABLE");
+});
+
+test("extraction's SOLD availability signal is passed through untouched", async () => {
+  const [result] = await enrichComparables([candidate()], {
+    fetchHtml: async () => ({ status: "ok", html: "<html></html>", finalUrl: "x" }),
+    extract: () => ({ evidence: "STRUCTURED_DATA", priceCents: 8900, currency: "USD", availability: "SOLD" }),
+  });
+  assert.equal(result.availabilitySignal, "SOLD");
+});
+
+test("availabilitySignal is null (not UNKNOWN) whenever no extraction ran at all", async () => {
+  const [noUrl] = await enrichComparables([candidate({ url: null })]);
+  assert.equal(noUrl.availabilitySignal, null);
+
+  const [blocked] = await enrichComparables([candidate()], {
+    fetchHtml: async () => ({ status: "blocked", reason: "HTTP 403" }),
+  });
+  assert.equal(blocked.availabilitySignal, null);
 });
 
 test("a blocked fetch yields BLOCKED evidence, a null price, and preserves the block reason", async () => {
@@ -79,7 +98,7 @@ test("an unexpected throw from fetchHtml is absorbed as UNVERIFIED and does not 
         if (url.includes("a.example")) throw new Error("boom");
         return { status: "ok", html: "", finalUrl: url };
       },
-      extract: () => ({ evidence: "STRUCTURED_DATA", priceCents: 1000, currency: "USD" }),
+      extract: () => ({ evidence: "STRUCTURED_DATA", priceCents: 1000, currency: "USD", availability: "AVAILABLE" }),
     },
   );
   assert.equal(results[0].priceEvidence, "UNVERIFIED");
@@ -103,6 +122,7 @@ test("preserves input order regardless of which candidate resolves first", async
       evidence: "STRUCTURED_DATA",
       priceCents: html.includes("slow") ? 1111 : 2222,
       currency: "USD",
+      availability: "AVAILABLE",
     }),
   });
   assert.equal(results[0].title, "Slow");
@@ -164,7 +184,7 @@ test("every non-null priceCents is paired with trusted evidence, on a mixed batc
     },
     extract: (html) =>
       html.includes("d.example")
-        ? { evidence: "STRUCTURED_DATA", priceCents: 3000, currency: "USD" }
+        ? { evidence: "STRUCTURED_DATA", priceCents: 3000, currency: "USD", availability: "AVAILABLE" }
         : { evidence: "UNVERIFIED", priceCents: null, reason: "no price found" },
   });
 

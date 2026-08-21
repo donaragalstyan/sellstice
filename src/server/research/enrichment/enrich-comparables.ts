@@ -29,6 +29,7 @@ async function enrichOne(
       priceCents: null,
       priceEvidence: "UNVERIFIED",
       priceEvidenceDetail: "candidate has no listing URL to verify a price against",
+      availabilitySignal: null,
       imageUrl: null,
       visualSimilarity: null,
     };
@@ -41,6 +42,7 @@ async function enrichOne(
         priceCents: null,
         priceEvidence: "BLOCKED",
         priceEvidenceDetail: fetchResult.reason,
+        availabilitySignal: null,
         imageUrl: null,
         visualSimilarity: null,
       };
@@ -51,6 +53,7 @@ async function enrichOne(
         priceCents: null,
         priceEvidence: "UNVERIFIED",
         priceEvidenceDetail: fetchResult.reason,
+        availabilitySignal: null,
         imageUrl: null,
         visualSimilarity: null,
       };
@@ -66,6 +69,7 @@ async function enrichOne(
         priceCents: null,
         priceEvidence: "UNVERIFIED",
         priceEvidenceDetail: extraction.reason,
+        availabilitySignal: null,
         imageUrl,
         visualSimilarity: null,
       };
@@ -75,6 +79,7 @@ async function enrichOne(
       priceCents: extraction.priceCents,
       priceEvidence: extraction.evidence,
       priceEvidenceDetail: null,
+      availabilitySignal: extraction.availability,
       imageUrl,
       visualSimilarity: null,
     };
@@ -87,6 +92,7 @@ async function enrichOne(
       priceCents: null,
       priceEvidence: "UNVERIFIED",
       priceEvidenceDetail: `unexpected error during enrichment: ${err instanceof Error ? err.message : "unknown error"}`,
+      availabilitySignal: null,
       imageUrl: null,
       visualSimilarity: null,
     };

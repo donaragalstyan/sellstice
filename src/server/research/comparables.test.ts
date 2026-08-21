@@ -30,6 +30,7 @@ function comp(overrides: Partial<ComparableSearchResult> = {}): ComparableSearch
     matchConfidence: 0.8,
     priceEvidence: "STRUCTURED_DATA",
     priceEvidenceDetail: null,
+    availabilitySignal: null,
     imageUrl: null,
     visualSimilarity: null,
     ...overrides,

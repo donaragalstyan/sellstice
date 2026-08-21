@@ -16,7 +16,7 @@ test("extracts a price from a single JSON-LD Product/Offer", () => {
     </script>
   `);
   const result = extractPrice(html);
-  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 4299, currency: "USD" });
+  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 4299, currency: "USD", availability: "UNKNOWN" });
 });
 
 test("finds the Product node inside an array of mixed JSON-LD types", () => {
@@ -29,7 +29,7 @@ test("finds the Product node inside an array of mixed JSON-LD types", () => {
     </script>
   `);
   const result = extractPrice(html);
-  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 2500, currency: "USD" });
+  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 2500, currency: "USD", availability: "UNKNOWN" });
 });
 
 test("finds a Product nested inside @graph", () => {
@@ -42,7 +42,7 @@ test("finds a Product nested inside @graph", () => {
     </script>
   `);
   const result = extractPrice(html);
-  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 1800, currency: "USD" });
+  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 1800, currency: "USD", availability: "UNKNOWN" });
 });
 
 test("reads price from priceSpecification when offers.price is absent", () => {
@@ -52,7 +52,7 @@ test("reads price from priceSpecification when offers.price is absent", () => {
     </script>
   `);
   const result = extractPrice(html);
-  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 3050, currency: "USD" });
+  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 3050, currency: "USD", availability: "UNKNOWN" });
 });
 
 test("does not throw on malformed JSON-LD, falls through instead", () => {
@@ -109,14 +109,14 @@ test("falls through to og:price:amount/currency meta tags when there is no JSON-
     <meta property="og:price:currency" content="USD">
   `);
   const result = extractPrice(html);
-  assert.deepEqual(result, { evidence: "META_TAG", priceCents: 1599, currency: "USD" });
+  assert.deepEqual(result, { evidence: "META_TAG", priceCents: 1599, currency: "USD", availability: "UNKNOWN" });
 });
 
 test("reads product:price:amount/currency meta tags regardless of attribute order", () => {
   const html = page(`<meta content="9.50" property="product:price:amount">
     <meta content="USD" property="product:price:currency">`);
   const result = extractPrice(html);
-  assert.deepEqual(result, { evidence: "META_TAG", priceCents: 950, currency: "USD" });
+  assert.deepEqual(result, { evidence: "META_TAG", priceCents: 950, currency: "USD", availability: "UNKNOWN" });
 });
 
 test("meta price without a currency tag is unverified, not assumed USD", () => {
@@ -142,7 +142,7 @@ test("falls through to microdata when there is no JSON-LD or meta tags", () => {
     <span itemprop="priceCurrency" content="USD"></span>
   `);
   const result = extractPrice(html);
-  assert.deepEqual(result, { evidence: "MICRODATA", priceCents: 1200, currency: "USD" });
+  assert.deepEqual(result, { evidence: "MICRODATA", priceCents: 1200, currency: "USD", availability: "UNKNOWN" });
 });
 
 test("microdata price without an unambiguous USD currency marker is unverified", () => {
@@ -206,7 +206,7 @@ test("eBay: shippingDetails on the offer is ignored, not conflated with the item
     </script>
   `);
   const result = extractPrice(html);
-  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 5999, currency: "USD" });
+  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 5999, currency: "USD", availability: "AVAILABLE" });
 });
 
 test("eBay: a multi-item 'lot' listing has one unambiguous price for the lot", () => {
@@ -217,7 +217,7 @@ test("eBay: a multi-item 'lot' listing has one unambiguous price for the lot", (
     </script>
   `);
   const result = extractPrice(html);
-  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 12999, currency: "USD" });
+  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 12999, currency: "USD", availability: "AVAILABLE" });
 });
 
 test("Poshmark: a visible crossed-out retail price outside structured data is never picked up", () => {
@@ -230,7 +230,7 @@ test("Poshmark: a visible crossed-out retail price outside structured data is ne
     <div class="price-original">$98</div>
   `);
   const result = extractPrice(html);
-  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 3500, currency: "USD" });
+  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 3500, currency: "USD", availability: "UNKNOWN" });
 });
 
 test("Depop: clean single-offer listing with no meta tags or microdata present", () => {
@@ -241,7 +241,7 @@ test("Depop: clean single-offer listing with no meta tags or microdata present",
     </script>
   `);
   const result = extractPrice(html);
-  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 1100, currency: "USD" });
+  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 1100, currency: "USD", availability: "UNKNOWN" });
 });
 
 test("Vinted: a numeric (not string) price with non-URL condition/availability values", () => {
@@ -252,7 +252,98 @@ test("Vinted: a numeric (not string) price with non-URL condition/availability v
     </script>
   `);
   const result = extractPrice(html);
-  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 1500, currency: "USD" });
+  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 1500, currency: "USD", availability: "AVAILABLE" });
+});
+
+// --- Availability signal (Phase 10.4, SOLD verification) -------------------
+//
+// Live-verified against real Poshmark listings: an active listing's offer
+// availability is "https://schema.org/InStock"; a confirmed-sold one
+// (checked via Poshmark's own "Sold Items" search filter) is
+// "https://schema.org/OutOfStock" — used downstream (providers/
+// brave-discovery.ts) to downgrade an AI-claimed SOLD priceType that this
+// deterministic signal contradicts.
+
+test("Poshmark: an active listing's InStock availability maps to AVAILABLE", () => {
+  const html = page(`
+    <script type="application/ld+json">
+    {"@type":"Product","offers":{"price":"35.0","priceCurrency":"USD","availability":"https://schema.org/InStock"}}
+    </script>
+  `);
+  const result = extractPrice(html);
+  assert.equal(result.evidence, "STRUCTURED_DATA");
+  if (result.evidence === "STRUCTURED_DATA") assert.equal(result.availability, "AVAILABLE");
+});
+
+test("Poshmark: a confirmed-sold listing's OutOfStock availability maps to SOLD", () => {
+  const html = page(`
+    <script type="application/ld+json">
+    {"@type":"Product","offers":{"price":"89.0","priceCurrency":"USD","availability":"https://schema.org/OutOfStock"}}
+    </script>
+  `);
+  const result = extractPrice(html);
+  assert.equal(result.evidence, "STRUCTURED_DATA");
+  if (result.evidence === "STRUCTURED_DATA") assert.equal(result.availability, "SOLD");
+});
+
+test("schema.org's literally-named SoldOut also maps to SOLD, even though only OutOfStock has been observed live", () => {
+  const html = page(`
+    <script type="application/ld+json">
+    {"@type":"Product","offers":{"price":"20.0","priceCurrency":"USD","availability":"https://schema.org/SoldOut"}}
+    </script>
+  `);
+  const result = extractPrice(html);
+  if (result.evidence === "STRUCTURED_DATA") assert.equal(result.availability, "SOLD");
+});
+
+test("a schema.org availability value not seen in the wild (BackOrder) still maps to AVAILABLE, per the spec", () => {
+  const html = page(`
+    <script type="application/ld+json">
+    {"@type":"Product","offers":{"price":"20.0","priceCurrency":"USD","availability":"https://schema.org/BackOrder"}}
+    </script>
+  `);
+  const result = extractPrice(html);
+  if (result.evidence === "STRUCTURED_DATA") assert.equal(result.availability, "AVAILABLE");
+});
+
+test("a missing availability field is UNKNOWN, not a guess either way", () => {
+  const html = page(`
+    <script type="application/ld+json">
+    {"@type":"Product","offers":{"price":"20.0","priceCurrency":"USD"}}
+    </script>
+  `);
+  const result = extractPrice(html);
+  if (result.evidence === "STRUCTURED_DATA") assert.equal(result.availability, "UNKNOWN");
+});
+
+test("disagreeing availability across multiple offers with the same price downgrades to UNKNOWN, not a guess", () => {
+  const html = page(`
+    <script type="application/ld+json">
+    {"@type":"Product","offers":[
+      {"price":"20.00","priceCurrency":"USD","availability":"https://schema.org/InStock"},
+      {"price":"20.00","priceCurrency":"USD","availability":"https://schema.org/OutOfStock"}
+    ]}
+    </script>
+  `);
+  const result = extractPrice(html);
+  assert.equal(result.evidence, "STRUCTURED_DATA");
+  if (result.evidence === "STRUCTURED_DATA") assert.equal(result.availability, "UNKNOWN");
+});
+
+test("meta-tag and microdata extraction carry no availability signal — always UNKNOWN", () => {
+  const metaHtml = page(`
+    <meta property="og:price:amount" content="15.99">
+    <meta property="og:price:currency" content="USD">
+  `);
+  const metaResult = extractPrice(metaHtml);
+  if (metaResult.evidence === "META_TAG") assert.equal(metaResult.availability, "UNKNOWN");
+
+  const microdataHtml = page(`
+    <span itemprop="price" content="12.00">$12.00</span>
+    <span itemprop="priceCurrency" content="USD"></span>
+  `);
+  const microdataResult = extractPrice(microdataHtml);
+  if (microdataResult.evidence === "MICRODATA") assert.equal(microdataResult.availability, "UNKNOWN");
 });
 
 test("Mercari: extra offer fields (priceValidUntil, return policy, object-shaped shippingDetails) are ignored", () => {
@@ -265,5 +356,5 @@ test("Mercari: extra offer fields (priceValidUntil, return policy, object-shaped
     </script>
   `);
   const result = extractPrice(html);
-  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 3600, currency: "USD" });
+  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 3600, currency: "USD", availability: "UNKNOWN" });
 });

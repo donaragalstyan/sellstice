@@ -1,4 +1,4 @@
-import { COMPARABLE_PRICE_EVIDENCE } from "../provider";
+import { COMPARABLE_PRICE_EVIDENCE, type PageAvailabilitySignal } from "../provider";
 
 export type StructuredPriceEvidence = Exclude<
   (typeof COMPARABLE_PRICE_EVIDENCE)[number],
@@ -6,7 +6,7 @@ export type StructuredPriceEvidence = Exclude<
 >;
 
 export type PriceExtractionResult =
-  | { evidence: StructuredPriceEvidence; priceCents: number; currency: "USD" }
+  | { evidence: StructuredPriceEvidence; priceCents: number; currency: "USD"; availability: PageAvailabilitySignal }
   | { evidence: "UNVERIFIED"; priceCents: null; reason: string };
 
 function parsePriceCents(raw: string | number): number | null {
@@ -29,7 +29,33 @@ function normalizeCurrency(raw: string | undefined | null): string | null {
 type StrategyResult =
   | { found: false }
   | { found: "ambiguous"; reason: string }
-  | { found: true; priceCents: number; currency: "USD"; evidence: StructuredPriceEvidence };
+  | {
+      found: true;
+      priceCents: number;
+      currency: "USD";
+      evidence: StructuredPriceEvidence;
+      availability: PageAvailabilitySignal;
+    };
+
+/** Reads a schema.org ItemAvailability value, with or without the
+ * "https://schema.org/" prefix (sites are inconsistent about including it). */
+function normalizeAvailability(raw: unknown): PageAvailabilitySignal {
+  if (typeof raw !== "string") return "UNKNOWN";
+  const value = raw.trim().toLowerCase();
+  if (value.endsWith("outofstock") || value.endsWith("soldout")) return "SOLD";
+  if (
+    value.endsWith("instock") ||
+    value.endsWith("limitedavailability") ||
+    value.endsWith("preorder") ||
+    value.endsWith("presale") ||
+    value.endsWith("backorder") ||
+    value.endsWith("onlineonly") ||
+    value.endsWith("instoreonly")
+  ) {
+    return "AVAILABLE";
+  }
+  return "UNKNOWN";
+}
 
 export function parseTagAttrs(tag: string): Record<string, string> {
   const attrs: Record<string, string> = {};
@@ -92,6 +118,7 @@ export function isProductNode(node: Record<string, unknown>): boolean {
 interface PriceCandidate {
   priceCents: number;
   currency: string | null;
+  availability: PageAvailabilitySignal;
 }
 
 function collectOfferCandidates(offers: unknown): PriceCandidate[] {
@@ -111,6 +138,7 @@ function collectOfferCandidates(offers: unknown): PriceCandidate[] {
     candidates.push({
       priceCents,
       currency: normalizeCurrency(typeof rawCurrency === "string" ? rawCurrency : undefined),
+      availability: normalizeAvailability(o.availability),
     });
   }
   return candidates;
@@ -137,7 +165,13 @@ function resolveCandidates(
   if (currency !== "USD") {
     return { found: "ambiguous", reason: `${sourceLabel} price is in ${currency}, not USD` };
   }
-  return { found: true, priceCents, currency: "USD", evidence };
+  // Only trust availability when every candidate that shares this price
+  // agrees on it — same "don't guess past a disagreement" rule as price
+  // and currency, just downgrading to UNKNOWN instead of failing the whole
+  // extraction, since availability is a bonus signal, not the price itself.
+  const distinctAvailability = new Set(candidates.map((c) => c.availability));
+  const availability = distinctAvailability.size === 1 ? candidates[0].availability : "UNKNOWN";
+  return { found: true, priceCents, currency: "USD", evidence, availability };
 }
 
 function extractFromJsonLd(html: string): StrategyResult {
@@ -185,7 +219,8 @@ function extractFromMetaTags(html: string): StrategyResult {
   if (currency !== "USD") {
     return { found: "ambiguous", reason: `meta price tag is in ${currency}, not USD` };
   }
-  return { found: true, priceCents, currency: "USD", evidence: "META_TAG" };
+  // Meta tags carry no availability signal in any page observed so far.
+  return { found: true, priceCents, currency: "USD", evidence: "META_TAG", availability: "UNKNOWN" };
 }
 
 // --- Strategy 3: schema.org microdata (itemprop="price") -----------------
@@ -223,7 +258,14 @@ function extractFromMicrodata(html: string): StrategyResult {
       reason: "microdata price has no unambiguous USD currency marker",
     };
   }
-  return { found: true, priceCents: [...distinct][0], currency: "USD", evidence: "MICRODATA" };
+  // Microdata carries no availability signal in any page observed so far.
+  return {
+    found: true,
+    priceCents: [...distinct][0],
+    currency: "USD",
+    evidence: "MICRODATA",
+    availability: "UNKNOWN",
+  };
 }
 
 // --- Entry point -----------------------------------------------------------
@@ -248,7 +290,12 @@ export function extractPrice(html: string): PriceExtractionResult {
   for (const strategy of STRATEGIES) {
     const result = strategy(html);
     if (result.found === true) {
-      return { evidence: result.evidence, priceCents: result.priceCents, currency: result.currency };
+      return {
+        evidence: result.evidence,
+        priceCents: result.priceCents,
+        currency: result.currency,
+        availability: result.availability,
+      };
     }
     if (result.found === "ambiguous") {
       return { evidence: "UNVERIFIED", priceCents: null, reason: result.reason };

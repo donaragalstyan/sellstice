@@ -39,6 +39,7 @@ function goodResult(overrides: Partial<ComparableSearchResult> = {}): Comparable
     matchConfidence: 0.9,
     priceEvidence: "STRUCTURED_DATA",
     priceEvidenceDetail: null,
+    availabilitySignal: null,
     imageUrl: null,
     visualSimilarity: null,
     ...overrides,

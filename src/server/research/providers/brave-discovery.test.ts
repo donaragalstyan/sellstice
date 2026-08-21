@@ -20,6 +20,7 @@ function enrichWith(imageUrl: string | null) {
       priceCents: 2500,
       priceEvidence: "STRUCTURED_DATA" as const,
       priceEvidenceDetail: null,
+      availabilitySignal: null,
       imageUrl,
       visualSimilarity: null,
     }));
@@ -48,6 +49,7 @@ test("full pipeline merges enrichment's price with matching's judgment", async (
       priceCents: 2500,
       priceEvidence: "STRUCTURED_DATA" as const,
       priceEvidenceDetail: null,
+      availabilitySignal: null,
       visualSimilarity: null,
     }));
   const match = async (): Promise<MatchJudgment[]> => [
@@ -72,7 +74,7 @@ test("full pipeline merges enrichment's price with matching's judgment", async (
 test("passes the discovery snippet through to the matching step", async () => {
   const discover = async (): Promise<DiscoveredCandidate[]> => [discovered({ snippet: "size M, worn once" })];
   const enrich = async (candidates: ComparableCandidate[]): Promise<ComparableSearchResult[]> =>
-    candidates.map((c) => ({ ...c, priceCents: null, priceEvidence: "UNVERIFIED" as const, priceEvidenceDetail: null, visualSimilarity: null }));
+    candidates.map((c) => ({ ...c, priceCents: null, priceEvidence: "UNVERIFIED" as const, priceEvidenceDetail: null, availabilitySignal: null, visualSimilarity: null }));
 
   let receivedSnippet: string | null | undefined;
   const match = async (_q: MarketResearchQuery, candidates: { snippet: string | null }[]): Promise<MatchJudgment[]> => {
@@ -91,7 +93,7 @@ test("empty discovery result skips enrichment and matching entirely", async () =
   const discover = async (): Promise<DiscoveredCandidate[]> => [];
   const enrich = async (candidates: ComparableCandidate[]): Promise<ComparableSearchResult[]> => {
     enrichCalled = true;
-    return candidates.map((c) => ({ ...c, priceCents: null, priceEvidence: "UNVERIFIED" as const, priceEvidenceDetail: null, visualSimilarity: null }));
+    return candidates.map((c) => ({ ...c, priceCents: null, priceEvidence: "UNVERIFIED" as const, priceEvidenceDetail: null, availabilitySignal: null, visualSimilarity: null }));
   };
   const match = async (): Promise<MatchJudgment[]> => {
     matchCalled = true;
@@ -109,13 +111,102 @@ test("empty discovery result skips enrichment and matching entirely", async () =
 test("a matching-step failure propagates out of findComparables", async () => {
   const discover = async (): Promise<DiscoveredCandidate[]> => [discovered()];
   const enrich = async (candidates: ComparableCandidate[]): Promise<ComparableSearchResult[]> =>
-    candidates.map((c) => ({ ...c, priceCents: null, priceEvidence: "UNVERIFIED" as const, priceEvidenceDetail: null, visualSimilarity: null }));
+    candidates.map((c) => ({ ...c, priceCents: null, priceEvidence: "UNVERIFIED" as const, priceEvidenceDetail: null, availabilitySignal: null, visualSimilarity: null }));
   const match = async (): Promise<MatchJudgment[]> => {
     throw new Error("matching failed");
   };
 
   const provider = new BraveDiscoveryComparableProvider({ discover, enrich, match });
   await assert.rejects(() => provider.findComparables(query()), /matching failed/);
+});
+
+// --- SOLD priceType reconciliation (Phase 10.4) ---------------------------
+//
+// matchCandidates only ever sees a title/snippet — a SOLD priceType from it
+// is still just a text judgment, exactly what comparableCandidateSchema's
+// priceType doc comment warns against trusting alone. These pin down that
+// the page's own deterministic availability signal (enrichComparables, via
+// extract-price.ts) is actually consulted, live-verified against real
+// Poshmark markup on the extract-price.ts side.
+
+test("an AI-claimed SOLD priceType is downgraded to UNKNOWN when the page's own availability says otherwise", async () => {
+  const discover = async (): Promise<DiscoveredCandidate[]> => [discovered()];
+  const enrich = async (candidates: ComparableCandidate[]): Promise<ComparableSearchResult[]> =>
+    candidates.map((c) => ({
+      ...c,
+      priceCents: 2500,
+      priceEvidence: "STRUCTURED_DATA" as const,
+      priceEvidenceDetail: null,
+      availabilitySignal: "AVAILABLE" as const,
+      visualSimilarity: null,
+    }));
+  const match = async (): Promise<MatchJudgment[]> => [
+    { matchConfidence: 0.9, priceType: "SOLD", condition: "Good", recency: "sold 2 days ago" },
+  ];
+
+  const provider = new BraveDiscoveryComparableProvider({ discover, enrich, match });
+  const [result] = await provider.findComparables(query());
+  assert.equal(result.priceType, "UNKNOWN");
+});
+
+test("a SOLD priceType is left alone when the page's availability confirms it", async () => {
+  const discover = async (): Promise<DiscoveredCandidate[]> => [discovered()];
+  const enrich = async (candidates: ComparableCandidate[]): Promise<ComparableSearchResult[]> =>
+    candidates.map((c) => ({
+      ...c,
+      priceCents: 2500,
+      priceEvidence: "STRUCTURED_DATA" as const,
+      priceEvidenceDetail: null,
+      availabilitySignal: "SOLD" as const,
+      visualSimilarity: null,
+    }));
+  const match = async (): Promise<MatchJudgment[]> => [
+    { matchConfidence: 0.9, priceType: "SOLD", condition: "Good", recency: "sold 2 days ago" },
+  ];
+
+  const provider = new BraveDiscoveryComparableProvider({ discover, enrich, match });
+  const [result] = await provider.findComparables(query());
+  assert.equal(result.priceType, "SOLD");
+});
+
+test("a SOLD priceType is left alone when there is no availability signal at all (no unearned confidence either way)", async () => {
+  const discover = async (): Promise<DiscoveredCandidate[]> => [discovered()];
+  const enrich = async (candidates: ComparableCandidate[]): Promise<ComparableSearchResult[]> =>
+    candidates.map((c) => ({
+      ...c,
+      priceCents: null,
+      priceEvidence: "BLOCKED" as const,
+      priceEvidenceDetail: "HTTP 403",
+      availabilitySignal: null,
+      visualSimilarity: null,
+    }));
+  const match = async (): Promise<MatchJudgment[]> => [
+    { matchConfidence: 0.9, priceType: "SOLD", condition: "Good", recency: "sold 2 days ago" },
+  ];
+
+  const provider = new BraveDiscoveryComparableProvider({ discover, enrich, match });
+  const [result] = await provider.findComparables(query());
+  assert.equal(result.priceType, "SOLD");
+});
+
+test("an ASKING priceType is never touched by the availability check, even when availability contradicts it", async () => {
+  const discover = async (): Promise<DiscoveredCandidate[]> => [discovered()];
+  const enrich = async (candidates: ComparableCandidate[]): Promise<ComparableSearchResult[]> =>
+    candidates.map((c) => ({
+      ...c,
+      priceCents: 2500,
+      priceEvidence: "STRUCTURED_DATA" as const,
+      priceEvidenceDetail: null,
+      availabilitySignal: "SOLD" as const,
+      visualSimilarity: null,
+    }));
+  const match = async (): Promise<MatchJudgment[]> => [
+    { matchConfidence: 0.9, priceType: "ASKING", condition: "Good", recency: "listed 3 days ago" },
+  ];
+
+  const provider = new BraveDiscoveryComparableProvider({ discover, enrich, match });
+  const [result] = await provider.findComparables(query());
+  assert.equal(result.priceType, "ASKING");
 });
 
 // --- Stage 2 (visual confirmation) --------------------------------------
@@ -297,6 +388,7 @@ test("caps the visual shortlist at 10 candidates, preferring the highest Stage 1
       priceCents: 2500,
       priceEvidence: "STRUCTURED_DATA" as const,
       priceEvidenceDetail: null,
+      availabilitySignal: null,
       imageUrl: String(i),
       visualSimilarity: null,
     }));

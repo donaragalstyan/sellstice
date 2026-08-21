@@ -12,6 +12,24 @@ export const COMPARABLE_PRICE_EVIDENCE = [
 ] as const;
 
 /**
+ * Whether the page's own structured data confirms the item is still
+ * available or confirms it sold — read verbatim from a schema.org
+ * Offer.availability value during enrichment (enrichment/extract-price.ts),
+ * never inferred. Used only to cross-check an AI-claimed priceType: "SOLD"
+ * against real page evidence (see providers/brave-discovery.ts) — "SOLD"
+ * must only be trusted when the source explicitly said so (see
+ * comparableCandidateSchema's priceType doc comment below), and this is the
+ * deterministic backstop for that claim, not just a prompt instruction.
+ * "SOLD" here is live-verified against real Poshmark listings (search
+ * filtered to Sold Items): a confirmed-sold listing's availability is
+ * "https://schema.org/OutOfStock", not the more literally-named "SoldOut" —
+ * both map to SOLD since they're the same schema.org ItemAvailability
+ * concept, but only OutOfStock has actually been observed. "UNKNOWN" is the
+ * safe default whenever the page gives no unambiguous signal either way.
+ */
+export type PageAvailabilitySignal = "AVAILABLE" | "SOLD" | "UNKNOWN";
+
+/**
  * What the AI's web-search discovery step must return. Deliberately has no
  * price field at all — a search snippet is not a reliable source for a
  * number that has to be exact, and asking the model to chase one down is
@@ -68,6 +86,10 @@ export type ComparableSearchResult = ComparableCandidate & {
   // is trusted (STRUCTURED_DATA/META_TAG/MICRODATA): a positive result speaks
   // for itself and needs no explanation.
   priceEvidenceDetail: string | null;
+  // Null whenever no extraction ran at all (no URL, fetch blocked/errored) —
+  // distinct from "UNKNOWN", which means extraction ran but the page gave no
+  // availability signal either way.
+  availabilitySignal: PageAvailabilitySignal | null;
   visualSimilarity: number | null;
 };
 
