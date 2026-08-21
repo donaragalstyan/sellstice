@@ -1,6 +1,11 @@
 import type { ComparableListing } from "@/generated/prisma/client";
 import { formatCents, formatConfidence } from "@/lib/format";
-import { assessComparableQuality, hasEnoughAttributesToResearch } from "@/server/research/comparables";
+import {
+  assessComparableQuality,
+  classifyComparableTier,
+  hasEnoughAttributesToResearch,
+  type ComparableTier,
+} from "@/server/research/comparables";
 import { MarketResearchButton } from "./market-research-button";
 import { ManualComparableForm } from "./manual-comparable-form";
 import { DeleteComparableButton } from "./delete-comparable-button";
@@ -14,6 +19,13 @@ const PRICE_TYPE_BADGE: Record<string, string> = {
 const SOURCE_BADGE: Record<string, string> = {
   WEB_SEARCH: "Web",
   MANUAL: "Manual",
+};
+
+const TIER_BADGE: Record<ComparableTier, { text: string; className: string }> = {
+  NEAR_IDENTICAL: { text: "Near-identical", className: "text-green-800 dark:text-green-300 font-medium" },
+  GOOD: { text: "Good match", className: "text-green-700 dark:text-green-400" },
+  APPROXIMATE: { text: "Approximate match", className: "text-amber-700 dark:text-amber-400" },
+  WEAK: { text: "Weak match", className: "text-gray-500 dark:text-gray-400" },
 };
 
 export function MarketResearch({
@@ -59,6 +71,7 @@ export function MarketResearch({
         <ul className="flex flex-col gap-2">
           {comparables.map((c) => {
             const confidenceLabel = formatConfidence(c.matchConfidence);
+            const tierBadge = TIER_BADGE[classifyComparableTier(c)];
             const visualBadge =
               c.visualSimilarity === null
                 ? null
@@ -99,6 +112,7 @@ export function MarketResearch({
                   </span>
                   {c.condition && <span>Condition: {c.condition}</span>}
                   {c.recency && <span>{c.recency}</span>}
+                  <span className={tierBadge.className}>{tierBadge.text}</span>
                   {confidenceLabel && <span>{confidenceLabel}</span>}
                   {visualBadge && <span className={visualBadge.className}>{visualBadge.text}</span>}
                 </div>

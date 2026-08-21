@@ -101,12 +101,18 @@ export function deduplicateAgainstExisting<T extends ComparableKeyFields>(
 export const MIN_COMPARABLE_CONFIDENCE = 0.5;
 export const MIN_USABLE_COMPARABLES = 3;
 
-export interface ComparableQualityAssessment {
-  usableCount: number;
-  totalCount: number;
-  sufficient: boolean;
-  reason: string;
-}
+// Tier boundaries (Phase 10.3). NEAR_IDENTICAL_CONFIDENCE/VISUAL are
+// deliberately strict — this tier means "point to this with confidence,"
+// not just "cleared the usability bar." APPROXIMATE_CONFIDENCE_FLOOR mirrors
+// providers/brave-discovery.ts's own Stage 2 shortlist floor: below it, a
+// candidate was never even visually checked, so it isn't worth surfacing as
+// anything but a weak match.
+export const NEAR_IDENTICAL_CONFIDENCE = 0.8;
+export const NEAR_IDENTICAL_VISUAL_SIMILARITY = 0.7;
+export const APPROXIMATE_CONFIDENCE_FLOOR = 0.3;
+
+export const COMPARABLE_TIERS = ["NEAR_IDENTICAL", "GOOD", "APPROXIMATE", "WEAK"] as const;
+export type ComparableTier = (typeof COMPARABLE_TIERS)[number];
 
 /** The only priceEvidence values that back a price with something we can actually point to. */
 const TRUSTED_PRICE_EVIDENCE = new Set<string>(["STRUCTURED_DATA", "META_TAG", "MICRODATA"]);
@@ -116,25 +122,74 @@ interface QualityFields {
   priceCents: number | null;
   matchConfidence: number | null;
   priceEvidence: string | null;
+  visualSimilarity: number | null;
 }
 
 /**
- * An automated comp only counts toward the trustworthy set if it has a real,
- * verified price (priceEvidence backed by something deterministic — see
- * enrichment/enrich-comparables.ts and ComparablePriceEvidence's doc comment
- * in the Prisma schema, not just a non-null priceCents) and a match
- * confidence that clears the bar. A manual comp has no match confidence or
- * priceEvidence by design (there's nothing to estimate or verify — the user
- * is vouching for it directly), so it's gated on price alone: requiring an
- * AI confidence value or automated evidence from a user-entered row would
- * make manual entry unable to ever satisfy the threshold, defeating its
- * purpose as a real override when automated research comes up short.
+ * Classifies a comp into one of four tiers instead of a flat usable/not-
+ * usable split — "finding a listing is not enough; Sellstice should
+ * determine how useful that listing actually is" (Phase 10.3). Built
+ * entirely from signals the pipeline already computes (matchConfidence —
+ * itself already a text/visual blend, see providers/brave-discovery.ts —
+ * priceEvidence, visualSimilarity); no new AI extraction.
+ *
+ * A manual comp always lands at GOOD: the user is vouching for it directly
+ * (see isUsableComparable's original reasoning, preserved here), so there's
+ * no automated signal to grade it against, and it would be wrong to either
+ * inflate it to NEAR_IDENTICAL (nothing confirmed that) or discount it below
+ * an automated guess.
+ *
+ * NEAR_IDENTICAL requires all three axes to agree: a strong text match, a
+ * verified price, AND an actual visual confirmation that agrees (not just
+ * the absence of a visual check) — this is deliberately hard to reach.
+ * GOOD is exactly today's pre-10.3 "usable" bar (confidence >= 0.5 + a
+ * trusted price), given a name instead of a boolean. APPROXIMATE surfaces
+ * comps with real but weaker signal, rather than treating them the same as
+ * a near-zero-confidence WEAK match.
+ */
+export function classifyComparableTier(comp: QualityFields): ComparableTier {
+  // A comp with no price at all can't inform pricing regardless of how well
+  // it otherwise matches — this applies to manual comps too, matching
+  // isUsableComparable's original priceCents check.
+  if (comp.priceCents === null) return "WEAK";
+  if (comp.source === "MANUAL") return "GOOD";
+
+  const hasTrustedPrice = comp.priceEvidence !== null && TRUSTED_PRICE_EVIDENCE.has(comp.priceEvidence);
+  const confidence = comp.matchConfidence ?? 0;
+
+  if (
+    hasTrustedPrice &&
+    confidence >= NEAR_IDENTICAL_CONFIDENCE &&
+    comp.visualSimilarity !== null &&
+    comp.visualSimilarity >= NEAR_IDENTICAL_VISUAL_SIMILARITY
+  ) {
+    return "NEAR_IDENTICAL";
+  }
+  if (hasTrustedPrice && confidence >= MIN_COMPARABLE_CONFIDENCE) {
+    return "GOOD";
+  }
+  if (confidence >= APPROXIMATE_CONFIDENCE_FLOOR) {
+    return "APPROXIMATE";
+  }
+  return "WEAK";
+}
+
+/**
+ * Equivalent to classifyComparableTier(comp) being NEAR_IDENTICAL or GOOD —
+ * kept as its own function since most callers only care about the boolean,
+ * not the specific tier.
  */
 export function isUsableComparable(comp: QualityFields): boolean {
-  if (comp.priceCents === null) return false;
-  if (comp.source === "MANUAL") return true;
-  if (!comp.priceEvidence || !TRUSTED_PRICE_EVIDENCE.has(comp.priceEvidence)) return false;
-  return comp.matchConfidence !== null && comp.matchConfidence >= MIN_COMPARABLE_CONFIDENCE;
+  const tier = classifyComparableTier(comp);
+  return tier === "NEAR_IDENTICAL" || tier === "GOOD";
+}
+
+export interface ComparableQualityAssessment {
+  usableCount: number;
+  totalCount: number;
+  tierCounts: Record<ComparableTier, number>;
+  sufficient: boolean;
+  reason: string;
 }
 
 /**
@@ -144,14 +199,24 @@ export function isUsableComparable(comp: QualityFields): boolean {
  * are added or removed.
  */
 export function assessComparableQuality(comps: QualityFields[]): ComparableQualityAssessment {
-  const usableCount = comps.filter(isUsableComparable).length;
+  const tierCounts: Record<ComparableTier, number> = {
+    NEAR_IDENTICAL: 0,
+    GOOD: 0,
+    APPROXIMATE: 0,
+    WEAK: 0,
+  };
+  for (const comp of comps) {
+    tierCounts[classifyComparableTier(comp)] += 1;
+  }
+  const usableCount = tierCounts.NEAR_IDENTICAL + tierCounts.GOOD;
   const sufficient = usableCount >= MIN_USABLE_COMPARABLES;
   return {
     usableCount,
     totalCount: comps.length,
+    tierCounts,
     sufficient,
     reason: sufficient
-      ? `${usableCount} reliable comparable${usableCount === 1 ? "" : "s"} found.`
+      ? `${tierCounts.NEAR_IDENTICAL} near-identical, ${tierCounts.GOOD} good comparable${tierCounts.GOOD === 1 ? "" : "s"} found.`
       : `Only ${usableCount} reliable comparable${usableCount === 1 ? "" : "s"} out of ${comps.length} found (need at least ${MIN_USABLE_COMPARABLES}). Treat any pricing guidance as low-confidence until more comps are available.`,
   };
 }

@@ -5,12 +5,16 @@ import {
   deduplicateAgainstExisting,
   assessComparableQuality,
   isUsableComparable,
+  classifyComparableTier,
   hasEnoughAttributesToResearch,
   mapComparablesToCreateData,
   getMarketResearchCooldownRemainingMs,
   MIN_COMPARABLE_CONFIDENCE,
   MIN_USABLE_COMPARABLES,
   MARKET_RESEARCH_COOLDOWN_MS,
+  NEAR_IDENTICAL_CONFIDENCE,
+  NEAR_IDENTICAL_VISUAL_SIMILARITY,
+  APPROXIMATE_CONFIDENCE_FLOOR,
 } from "./comparables";
 import type { ComparableSearchResult } from "./provider";
 
@@ -81,36 +85,52 @@ test("deduplicateAgainstExisting keeps everything when nothing overlaps", () => 
 
 // --- Quality thresholds ----------------------------------------------------
 
+function qualityComp(overrides: Partial<Parameters<typeof classifyComparableTier>[0]> = {}) {
+  return {
+    source: "WEB_SEARCH" as const,
+    priceCents: 2000,
+    matchConfidence: 0.9,
+    priceEvidence: "STRUCTURED_DATA" as const,
+    visualSimilarity: null,
+    ...overrides,
+  };
+}
+
 test("isUsableComparable requires both a price and match confidence at/above the bar for web-search comps", () => {
-  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: MIN_COMPARABLE_CONFIDENCE, priceEvidence: "STRUCTURED_DATA" }), true);
-  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: null, matchConfidence: 0.9, priceEvidence: "STRUCTURED_DATA" }), false);
-  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: null, priceEvidence: "STRUCTURED_DATA" }), false);
-  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: MIN_COMPARABLE_CONFIDENCE - 0.01, priceEvidence: "STRUCTURED_DATA" }), false);
+  assert.equal(isUsableComparable(qualityComp({ matchConfidence: MIN_COMPARABLE_CONFIDENCE })), true);
+  assert.equal(isUsableComparable(qualityComp({ priceCents: null, matchConfidence: 0.9 })), false);
+  assert.equal(isUsableComparable(qualityComp({ matchConfidence: null })), false);
+  assert.equal(isUsableComparable(qualityComp({ matchConfidence: MIN_COMPARABLE_CONFIDENCE - 0.01 })), false);
 });
 
 test("isUsableComparable requires trusted price evidence, not just a non-null price", () => {
-  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: 0.9, priceEvidence: "STRUCTURED_DATA" }), true);
-  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: 0.9, priceEvidence: "META_TAG" }), true);
-  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: 0.9, priceEvidence: "MICRODATA" }), true);
-  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: 0.9, priceEvidence: "UNVERIFIED" }), false);
-  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: 0.9, priceEvidence: "BLOCKED" }), false);
-  assert.equal(isUsableComparable({ source: "WEB_SEARCH", priceCents: 2000, matchConfidence: 0.9, priceEvidence: null }), false);
+  assert.equal(isUsableComparable(qualityComp({ priceEvidence: "STRUCTURED_DATA" })), true);
+  assert.equal(isUsableComparable(qualityComp({ priceEvidence: "META_TAG" })), true);
+  assert.equal(isUsableComparable(qualityComp({ priceEvidence: "MICRODATA" })), true);
+  assert.equal(isUsableComparable(qualityComp({ priceEvidence: "UNVERIFIED" })), false);
+  assert.equal(isUsableComparable(qualityComp({ priceEvidence: "BLOCKED" })), false);
+  assert.equal(isUsableComparable(qualityComp({ priceEvidence: null })), false);
 });
 
 test("isUsableComparable trusts a manual comp with a price regardless of (null) match confidence or price evidence", () => {
-  assert.equal(isUsableComparable({ source: "MANUAL", priceCents: 2000, matchConfidence: null, priceEvidence: null }), true);
-  assert.equal(isUsableComparable({ source: "MANUAL", priceCents: null, matchConfidence: null, priceEvidence: null }), false);
+  assert.equal(
+    isUsableComparable({ source: "MANUAL", priceCents: 2000, matchConfidence: null, priceEvidence: null, visualSimilarity: null }),
+    true,
+  );
+  assert.equal(
+    isUsableComparable({ source: "MANUAL", priceCents: null, matchConfidence: null, priceEvidence: null, visualSimilarity: null }),
+    false,
+  );
 });
 
 test("assessComparableQuality: manual entries can push an otherwise-insufficient set over the threshold", () => {
-  const weakAutomated = [
-    { source: "WEB_SEARCH" as const, priceCents: 1500, matchConfidence: 0.2, priceEvidence: "STRUCTURED_DATA" },
-  ];
+  const weakAutomated = [qualityComp({ priceCents: 1500, matchConfidence: 0.2 })];
   const manual = Array.from({ length: MIN_USABLE_COMPARABLES }, () => ({
     source: "MANUAL" as const,
     priceCents: 2000,
     matchConfidence: null,
     priceEvidence: null,
+    visualSimilarity: null,
   }));
   const result = assessComparableQuality([...weakAutomated, ...manual]);
   assert.equal(result.usableCount, MIN_USABLE_COMPARABLES);
@@ -118,10 +138,7 @@ test("assessComparableQuality: manual entries can push an otherwise-insufficient
 });
 
 test("assessComparableQuality reports insufficient below the minimum usable count", () => {
-  const comps = [
-    { source: "WEB_SEARCH" as const, priceCents: 2000, matchConfidence: 0.9, priceEvidence: "STRUCTURED_DATA" },
-    { source: "WEB_SEARCH" as const, priceCents: 1800, matchConfidence: 0.6, priceEvidence: "META_TAG" },
-  ];
+  const comps = [qualityComp({ matchConfidence: 0.9 }), qualityComp({ priceCents: 1800, matchConfidence: 0.6, priceEvidence: "META_TAG" })];
   const result = assessComparableQuality(comps);
   assert.equal(result.usableCount, 2);
   assert.equal(result.totalCount, 2);
@@ -130,28 +147,15 @@ test("assessComparableQuality reports insufficient below the minimum usable coun
 });
 
 test("assessComparableQuality reports sufficient exactly at the minimum usable count", () => {
-  const comps = Array.from({ length: MIN_USABLE_COMPARABLES }, () => ({
-    source: "WEB_SEARCH" as const,
-    priceCents: 2000,
-    matchConfidence: 0.9,
-    priceEvidence: "STRUCTURED_DATA",
-  }));
+  const comps = Array.from({ length: MIN_USABLE_COMPARABLES }, () => qualityComp());
   const result = assessComparableQuality(comps);
   assert.equal(result.usableCount, MIN_USABLE_COMPARABLES);
   assert.equal(result.sufficient, true);
 });
 
 test("assessComparableQuality: 10 found but only 2 reliable is still insufficient (the exact scenario to avoid)", () => {
-  const weak = Array.from({ length: 8 }, () => ({
-    source: "WEB_SEARCH" as const,
-    priceCents: 1500,
-    matchConfidence: 0.2,
-    priceEvidence: "STRUCTURED_DATA",
-  }));
-  const strong = [
-    { source: "WEB_SEARCH" as const, priceCents: 2000, matchConfidence: 0.9, priceEvidence: "STRUCTURED_DATA" },
-    { source: "WEB_SEARCH" as const, priceCents: 2100, matchConfidence: 0.85, priceEvidence: "META_TAG" },
-  ];
+  const weak = Array.from({ length: 8 }, () => qualityComp({ priceCents: 1500, matchConfidence: 0.2 }));
+  const strong = [qualityComp({ matchConfidence: 0.9 }), qualityComp({ priceCents: 2100, matchConfidence: 0.85, priceEvidence: "META_TAG" })];
   const result = assessComparableQuality([...weak, ...strong]);
   assert.equal(result.totalCount, 10);
   assert.equal(result.usableCount, 2);
@@ -159,11 +163,7 @@ test("assessComparableQuality: 10 found but only 2 reliable is still insufficien
 });
 
 test("assessComparableQuality ignores comps with unknown price even at high confidence", () => {
-  const comps = [
-    { source: "WEB_SEARCH" as const, priceCents: null, matchConfidence: 0.95, priceEvidence: null },
-    { source: "WEB_SEARCH" as const, priceCents: null, matchConfidence: 0.95, priceEvidence: null },
-    { source: "WEB_SEARCH" as const, priceCents: null, matchConfidence: 0.95, priceEvidence: null },
-  ];
+  const comps = Array.from({ length: 3 }, () => qualityComp({ priceCents: null, matchConfidence: 0.95, priceEvidence: null }));
   const result = assessComparableQuality(comps);
   assert.equal(result.usableCount, 0);
   assert.equal(result.sufficient, false);
@@ -171,13 +171,101 @@ test("assessComparableQuality ignores comps with unknown price even at high conf
 
 test("assessComparableQuality treats an unverified/blocked price the same as a missing one, even at high confidence", () => {
   const comps = [
-    { source: "WEB_SEARCH" as const, priceCents: 2000, matchConfidence: 0.95, priceEvidence: "UNVERIFIED" },
-    { source: "WEB_SEARCH" as const, priceCents: 2100, matchConfidence: 0.95, priceEvidence: "BLOCKED" },
-    { source: "WEB_SEARCH" as const, priceCents: 2200, matchConfidence: 0.95, priceEvidence: "STRUCTURED_DATA" },
+    qualityComp({ matchConfidence: 0.95, priceEvidence: "UNVERIFIED" }),
+    qualityComp({ priceCents: 2100, matchConfidence: 0.95, priceEvidence: "BLOCKED" }),
+    qualityComp({ priceCents: 2200, matchConfidence: 0.95, priceEvidence: "STRUCTURED_DATA" }),
   ];
   const result = assessComparableQuality(comps);
   assert.equal(result.usableCount, 1);
   assert.equal(result.sufficient, false);
+});
+
+// --- Comparable tiers (Phase 10.3) ------------------------------------------
+
+test("NEAR_IDENTICAL requires strong confidence, a trusted price, AND visual confirmation all together", () => {
+  assert.equal(
+    classifyComparableTier(
+      qualityComp({ matchConfidence: NEAR_IDENTICAL_CONFIDENCE, visualSimilarity: NEAR_IDENTICAL_VISUAL_SIMILARITY }),
+    ),
+    "NEAR_IDENTICAL",
+  );
+  // Same confidence, but no visual check ran — must not reach NEAR_IDENTICAL.
+  assert.equal(
+    classifyComparableTier(qualityComp({ matchConfidence: NEAR_IDENTICAL_CONFIDENCE, visualSimilarity: null })),
+    "GOOD",
+  );
+  // Visual check ran but disagreed — must not reach NEAR_IDENTICAL either.
+  assert.equal(
+    classifyComparableTier(qualityComp({ matchConfidence: NEAR_IDENTICAL_CONFIDENCE, visualSimilarity: 0.1 })),
+    "GOOD",
+  );
+});
+
+test("GOOD is exactly the pre-10.3 usability bar: confidence >= 0.5 with a trusted price", () => {
+  assert.equal(classifyComparableTier(qualityComp({ matchConfidence: MIN_COMPARABLE_CONFIDENCE })), "GOOD");
+  assert.equal(
+    classifyComparableTier(qualityComp({ matchConfidence: MIN_COMPARABLE_CONFIDENCE - 0.01 })),
+    "APPROXIMATE",
+  );
+});
+
+test("APPROXIMATE covers real but weaker signal, between the floor and the GOOD bar", () => {
+  assert.equal(classifyComparableTier(qualityComp({ matchConfidence: APPROXIMATE_CONFIDENCE_FLOOR })), "APPROXIMATE");
+  assert.equal(
+    classifyComparableTier(qualityComp({ matchConfidence: APPROXIMATE_CONFIDENCE_FLOOR - 0.01 })),
+    "WEAK",
+  );
+  // Good confidence but no trusted price still can't clear GOOD — falls to APPROXIMATE.
+  assert.equal(
+    classifyComparableTier(qualityComp({ matchConfidence: 0.9, priceEvidence: "UNVERIFIED" })),
+    "APPROXIMATE",
+  );
+});
+
+test("a comp with no price at all is always WEAK, even a manual one", () => {
+  assert.equal(classifyComparableTier(qualityComp({ priceCents: null, matchConfidence: 0.99 })), "WEAK");
+  assert.equal(
+    classifyComparableTier({
+      source: "MANUAL",
+      priceCents: null,
+      matchConfidence: null,
+      priceEvidence: null,
+      visualSimilarity: null,
+    }),
+    "WEAK",
+  );
+});
+
+test("a manual comp with a price is always GOOD, never NEAR_IDENTICAL", () => {
+  assert.equal(
+    classifyComparableTier({
+      source: "MANUAL",
+      priceCents: 2000,
+      matchConfidence: null,
+      priceEvidence: null,
+      visualSimilarity: null,
+    }),
+    "GOOD",
+  );
+});
+
+test("assessComparableQuality's tierCounts add up to totalCount and usableCount matches NEAR_IDENTICAL+GOOD", () => {
+  const comps = [
+    qualityComp({ matchConfidence: NEAR_IDENTICAL_CONFIDENCE, visualSimilarity: NEAR_IDENTICAL_VISUAL_SIMILARITY }),
+    qualityComp({ matchConfidence: MIN_COMPARABLE_CONFIDENCE }),
+    qualityComp({ matchConfidence: APPROXIMATE_CONFIDENCE_FLOOR }),
+    qualityComp({ matchConfidence: 0 }),
+  ];
+  const result = assessComparableQuality(comps);
+  assert.equal(result.tierCounts.NEAR_IDENTICAL, 1);
+  assert.equal(result.tierCounts.GOOD, 1);
+  assert.equal(result.tierCounts.APPROXIMATE, 1);
+  assert.equal(result.tierCounts.WEAK, 1);
+  assert.equal(
+    result.tierCounts.NEAR_IDENTICAL + result.tierCounts.GOOD + result.tierCounts.APPROXIMATE + result.tierCounts.WEAK,
+    result.totalCount,
+  );
+  assert.equal(result.usableCount, result.tierCounts.NEAR_IDENTICAL + result.tierCounts.GOOD);
 });
 
 // --- Attribute guard -------------------------------------------------------
