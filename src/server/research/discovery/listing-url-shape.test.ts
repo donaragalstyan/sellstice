@@ -49,6 +49,28 @@ test("classifies a Mercari curated shop page as non_listing, not listing", () =>
   );
 });
 
+test("classifies a real eBay listing URL with a title slug", () => {
+  assert.equal(
+    classifyListingUrl("ebay.com", "https://www.ebay.com/itm/Zara-Green-Zip-Up-Hoodie-Size-Medium/145678901234"),
+    "listing",
+  );
+});
+
+test("classifies a real eBay listing URL with no title slug", () => {
+  assert.equal(classifyListingUrl("ebay.com", "https://www.ebay.com/itm/145678901234"), "listing");
+});
+
+test("classifies an eBay search results page as non_listing", () => {
+  assert.equal(
+    classifyListingUrl("ebay.com", "https://www.ebay.com/sch/i.html?_nkw=zara+hoodie"),
+    "non_listing",
+  );
+});
+
+test("classifies an eBay storefront page as non_listing", () => {
+  assert.equal(classifyListingUrl("ebay.com", "https://www.ebay.com/str/somestore"), "non_listing");
+});
+
 test("classifies an off-domain URL as off_domain", () => {
   assert.equal(
     classifyListingUrl("vinted.com", "https://www.evil.com/items/3952370293-zara-neoprene-zip-up-hoodie"),
@@ -65,5 +87,5 @@ test("classifies an unparsable URL as malformed", () => {
 });
 
 test("throws on an unregistered marketplace id", () => {
-  assert.throws(() => classifyListingUrl("ebay.com", "https://ebay.com/itm/123"));
+  assert.throws(() => classifyListingUrl("etsy.com", "https://etsy.com/listing/123"));
 });

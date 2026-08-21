@@ -3,12 +3,13 @@ import type { DiscoveredCandidate, MarketplaceDiscoveryProvider } from "./types"
 import { BraveMarketplaceDiscoveryProvider } from "./providers/brave";
 import { KNOWN_MARKETPLACES } from "./listing-url-shape";
 
-const BEST_EFFORT_MARKETPLACES = new Set(["mercari.com"]);
+// eBay is Brave-backed too (providers/ebay.ts's official-API adapter stays
+// an unused stub, blocked on eBay developer account approval) — best-effort
+// like Mercari, since eBay's listing turnover and bot-detection make Brave
+// coverage less predictable than the smaller marketplaces.
+const BEST_EFFORT_MARKETPLACES = new Set(["mercari.com", "ebay.com"]);
 
 function defaultProviders(): MarketplaceDiscoveryProvider[] {
-  // eBay is deliberately absent — its adapter (providers/ebay.ts) is an
-  // interface-only stub until Browse API credentials arrive. Adding it here
-  // is a one-line change once discover() has a real implementation.
   return KNOWN_MARKETPLACES.map(
     (marketplace) =>
       new BraveMarketplaceDiscoveryProvider(marketplace, {

@@ -31,6 +31,13 @@ const MARKETPLACE_URL_RULES: Record<string, MarketplaceUrlRules> = {
     listingPathPattern: /^\/(?:us\/)?item\/m\d+/i,
     rejectPathPatterns: [/^\/(?:us\/)?shop\//i],
   },
+  "ebay.com": {
+    hostname: "ebay.com",
+    // Real item pages: /itm/<numericId> or /itm/<title-slug>/<numericId>.
+    // Rejects /sch/ (search results), /str/ (storefronts), /b/ (browse
+    // nodes) and other non-listing sections via the positive-only pattern.
+    listingPathPattern: /^\/itm\/(?:[^/]+\/)?\d{9,}(?:[/?]|$)/,
+  },
 };
 
 /** The marketplace ids this classifier (and the Brave adapter) knows about. */
