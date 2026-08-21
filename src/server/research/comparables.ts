@@ -28,6 +28,21 @@ export function getMarketResearchCooldownRemainingMs(
   return getCooldownRemainingMs(lastRunAt, now, cooldownMs);
 }
 
+/**
+ * A refinement session (agent/refine-comparables-agent.ts) can cost up to
+ * MAX_REFINEMENT_RETRIES+1 full pipeline runs, not just one — longer cooldown
+ * than a normal research run to match.
+ */
+export const REFINEMENT_COOLDOWN_MS = 120_000;
+
+export function getRefinementCooldownRemainingMs(
+  lastRunAt: Date | null,
+  now: Date,
+  cooldownMs = REFINEMENT_COOLDOWN_MS,
+): number {
+  return getCooldownRemainingMs(lastRunAt, now, cooldownMs);
+}
+
 /** Don't spend a research call on an item with nothing to search for. */
 export function hasEnoughAttributesToResearch(query: MarketResearchQuery): boolean {
   return Boolean(query.brand || query.category);
@@ -35,7 +50,7 @@ export function hasEnoughAttributesToResearch(query: MarketResearchQuery): boole
 
 // --- Deduplication -----------------------------------------------------
 
-interface ComparableKeyFields {
+export interface ComparableKeyFields {
   url: string | null;
   title: string;
   marketplace: string | null;
@@ -117,7 +132,7 @@ export type ComparableTier = (typeof COMPARABLE_TIERS)[number];
 /** The only priceEvidence values that back a price with something we can actually point to. */
 const TRUSTED_PRICE_EVIDENCE = new Set<string>(["STRUCTURED_DATA", "META_TAG", "MICRODATA"]);
 
-interface QualityFields {
+export interface QualityFields {
   source: "WEB_SEARCH" | "MANUAL";
   priceCents: number | null;
   matchConfidence: number | null;

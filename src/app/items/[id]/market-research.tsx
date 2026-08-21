@@ -7,6 +7,7 @@ import {
   type ComparableTier,
 } from "@/server/research/comparables";
 import { MarketResearchButton } from "./market-research-button";
+import { RefineComparablesButton } from "./refine-comparables-button";
 import { ManualComparableForm } from "./manual-comparable-form";
 import { DeleteComparableButton } from "./delete-comparable-button";
 
@@ -66,6 +67,8 @@ export function MarketResearch({
             : `Not enough reliable comps yet. ${quality.reason}`}
         </p>
       )}
+
+      {comparables.length > 0 && !quality.sufficient && <RefineComparablesButton itemId={itemId} />}
 
       {comparables.length > 0 && (
         <ul className="flex flex-col gap-2">
