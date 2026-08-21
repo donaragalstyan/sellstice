@@ -181,3 +181,89 @@ test("an absurdly large or malformed price string is treated as not found", () =
   const result = extractPrice(html);
   assert.equal(result.evidence, "UNVERIFIED");
 });
+
+// --- Real marketplace shapes (Phase 10.4 recon, live-verified 2026-08-21) --
+//
+// Phase 10.4's roadmap worried that a listing page's crossed-out/retail,
+// shipping, bundle, or unrelated prices could get picked up alongside the
+// real one. Live listings across eBay, Poshmark, Depop, Vinted, and Mercari
+// were pulled and inspected: in every case the structured data these three
+// strategies read is already a single, clean, current price — shipping
+// price lives under a key path (`offers.shippingDetails`) none of the
+// strategies read, and a visible "was $X" retail price never makes it into
+// structured data at all (it's plain text, invisible to all three
+// strategies, which never scrape visible text for prices). These fixtures
+// pin that down as regression coverage rather than leaving it unverified.
+
+test("eBay: shippingDetails on the offer is ignored, not conflated with the item price", () => {
+  const html = page(`
+    <script type="application/ld+json">
+    {"@type":"Product","name":"Lululemon Women's Leggings - Black","offers":
+      {"@type":"Offer","priceCurrency":"USD","price":"59.99","availability":"https://schema.org/InStock",
+       "shippingDetails":[{"@type":"OfferShippingDetails",
+         "shippingRate":{"@type":"MonetaryAmount","value":"6.24","currency":"USD"},
+         "shippingDestination":{"@type":"DefinedRegion","addressCountry":"USA"}}]}}
+    </script>
+  `);
+  const result = extractPrice(html);
+  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 5999, currency: "USD" });
+});
+
+test("eBay: a multi-item 'lot' listing has one unambiguous price for the lot", () => {
+  const html = page(`
+    <script type="application/ld+json">
+    {"@type":"Product","name":"Lululemon Leggings Lot of 3","offers":
+      {"@type":"Offer","priceCurrency":"USD","price":"129.99","availability":"https://schema.org/InStock"}}
+    </script>
+  `);
+  const result = extractPrice(html);
+  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 12999, currency: "USD" });
+});
+
+test("Poshmark: a visible crossed-out retail price outside structured data is never picked up", () => {
+  const html = page(`
+    <script type="application/ld+json">
+    {"@type":"Product","name":"Lululemon Align High-Rise Pant","offers":
+      {"@type":"Offer","priceCurrency":"USD","price":"35.0","itemCondition":"https://schema.org/UsedCondition"}}
+    </script>
+    <div class="price-now">$35</div>
+    <div class="price-original">$98</div>
+  `);
+  const result = extractPrice(html);
+  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 3500, currency: "USD" });
+});
+
+test("Depop: clean single-offer listing with no meta tags or microdata present", () => {
+  const html = page(`
+    <script type="application/ld+json">
+    {"@type":"Product","name":"Black Lululemon Align leggings","offers":
+      {"@type":"Offer","priceCurrency":"USD","price":"11.00","itemCondition":"https://schema.org/UsedCondition"}}
+    </script>
+  `);
+  const result = extractPrice(html);
+  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 1100, currency: "USD" });
+});
+
+test("Vinted: a numeric (not string) price with non-URL condition/availability values", () => {
+  const html = page(`
+    <script type="application/ld+json">
+    {"@type":"Product","name":"Lululemon align mini flare leggings","offers":
+      {"@type":"Offer","priceCurrency":"USD","price":15,"availability":"InStock","itemCondition":"UsedCondition"}}
+    </script>
+  `);
+  const result = extractPrice(html);
+  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 1500, currency: "USD" });
+});
+
+test("Mercari: extra offer fields (priceValidUntil, return policy, object-shaped shippingDetails) are ignored", () => {
+  const html = page(`
+    <script type="application/ld+json">
+    {"@type":"Product","name":"Lulu Lemon Leggings","offers":
+      {"@type":"Offer","priceCurrency":"USD","price":"36","priceValidUntil":"2027-06-30",
+       "shippingDetails":{"@type":"OfferShippingDetails","shippingRate":{"@type":"MonetaryAmount","value":5.66,"currency":"USD"}},
+       "hasMerchantReturnPolicy":{"@type":"MerchantReturnPolicy","merchantReturnDays":3}}}
+    </script>
+  `);
+  const result = extractPrice(html);
+  assert.deepEqual(result, { evidence: "STRUCTURED_DATA", priceCents: 3600, currency: "USD" });
+});
