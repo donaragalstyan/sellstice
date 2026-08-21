@@ -58,6 +58,12 @@ export function MarketResearch({
         <ul className="flex flex-col gap-2">
           {comparables.map((c) => {
             const confidenceLabel = formatConfidence(c.matchConfidence);
+            const visualBadge =
+              c.visualSimilarity === null
+                ? null
+                : c.visualSimilarity >= 0.5
+                  ? { text: "Visually confirmed", className: "text-green-700 dark:text-green-400" }
+                  : { text: "Visual mismatch", className: "text-amber-700 dark:text-amber-400" };
             return (
               <li
                 key={c.id}
@@ -93,6 +99,7 @@ export function MarketResearch({
                   {c.condition && <span>Condition: {c.condition}</span>}
                   {c.recency && <span>{c.recency}</span>}
                   {confidenceLabel && <span>{confidenceLabel}</span>}
+                  {visualBadge && <span className={visualBadge.className}>{visualBadge.text}</span>}
                 </div>
               </li>
             );

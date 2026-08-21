@@ -1,13 +1,15 @@
 import { BraveDiscoveryComparableProvider } from "./providers/brave-discovery";
 import { getCooldownRemainingMs } from "@/server/ai/cooldown";
 import type { ComparableSearchResult, MarketResearchQuery } from "./provider";
+import type { ImageInput } from "@/server/ai";
 
 const provider = new BraveDiscoveryComparableProvider();
 
 export async function findComparableListings(
   query: MarketResearchQuery,
+  itemPhotos: ImageInput[] = [],
 ): Promise<ComparableSearchResult[]> {
-  return provider.findComparables(query);
+  return provider.findComparables(query, itemPhotos);
 }
 
 /**
@@ -169,6 +171,8 @@ export function mapComparablesToCreateData(itemId: string, results: ComparableSe
     recency: r.recency,
     matchConfidence: r.matchConfidence,
     priceEvidence: r.priceEvidence,
+    imageUrl: r.imageUrl,
+    visualSimilarity: r.visualSimilarity,
     rawMetadata: r,
   }));
 }

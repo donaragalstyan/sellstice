@@ -1,60 +1,59 @@
 import type { ComparableCandidate, ComparableSearchResult } from "../provider";
 import { fetchListingHtml, type FetchResult } from "./fetch-listing";
 import { extractPrice, type PriceExtractionResult } from "./extract-price";
+import { extractImageUrl } from "./extract-image";
+import { mapWithConcurrency } from "./concurrency";
 
 const DEFAULT_CONCURRENCY = Number(process.env.MARKET_RESEARCH_FETCH_CONCURRENCY) || 4;
-
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let nextIndex = 0;
-  async function worker() {
-    for (;;) {
-      const index = nextIndex++;
-      if (index >= items.length) return;
-      results[index] = await fn(items[index]);
-    }
-  }
-  const workerCount = Math.max(1, Math.min(limit, items.length));
-  await Promise.all(Array.from({ length: workerCount }, worker));
-  return results;
-}
 
 export interface EnrichComparablesOptions {
   concurrency?: number;
   fetchHtml?: (url: string) => Promise<FetchResult>;
   extract?: (html: string) => PriceExtractionResult;
+  extractImage?: (html: string, pageUrl: string) => string | null;
 }
 
 async function enrichOne(
   candidate: ComparableCandidate,
   fetchHtml: (url: string) => Promise<FetchResult>,
   extract: (html: string) => PriceExtractionResult,
+  extractImage: (html: string, pageUrl: string) => string | null,
 ): Promise<ComparableSearchResult> {
+  // visualSimilarity is always a placeholder here — it's Stage 2's field
+  // (discovery/match-candidates-visual.ts, assigned in
+  // providers/brave-discovery.ts), never enrichment's, same
+  // placeholder-then-overwrite pattern as matchConfidence.
   if (candidate.url === null) {
-    return { ...candidate, priceCents: null, priceEvidence: "UNVERIFIED" };
+    return { ...candidate, priceCents: null, priceEvidence: "UNVERIFIED", imageUrl: null, visualSimilarity: null };
   }
   try {
     const fetchResult = await fetchHtml(candidate.url);
     if (fetchResult.status === "blocked") {
-      return { ...candidate, priceCents: null, priceEvidence: "BLOCKED" };
+      return { ...candidate, priceCents: null, priceEvidence: "BLOCKED", imageUrl: null, visualSimilarity: null };
     }
     if (fetchResult.status === "error") {
-      return { ...candidate, priceCents: null, priceEvidence: "UNVERIFIED" };
+      return { ...candidate, priceCents: null, priceEvidence: "UNVERIFIED", imageUrl: null, visualSimilarity: null };
     }
+    // Image extraction reads the same already-fetched HTML — no extra
+    // request — and never blocks or downgrades the price result even if it
+    // fails to find anything.
+    const imageUrl = extractImage(fetchResult.html, fetchResult.finalUrl);
     const extraction = extract(fetchResult.html);
     if (extraction.evidence === "UNVERIFIED") {
-      return { ...candidate, priceCents: null, priceEvidence: "UNVERIFIED" };
+      return { ...candidate, priceCents: null, priceEvidence: "UNVERIFIED", imageUrl, visualSimilarity: null };
     }
-    return { ...candidate, priceCents: extraction.priceCents, priceEvidence: extraction.evidence };
+    return {
+      ...candidate,
+      priceCents: extraction.priceCents,
+      priceEvidence: extraction.evidence,
+      imageUrl,
+      visualSimilarity: null,
+    };
   } catch {
     // An unexpected failure here must not sink the rest of the batch, and
     // must never leave the AI's own unverified priceCents guess standing in
     // for a real one.
-    return { ...candidate, priceCents: null, priceEvidence: "UNVERIFIED" };
+    return { ...candidate, priceCents: null, priceEvidence: "UNVERIFIED", imageUrl: null, visualSimilarity: null };
   }
 }
 
@@ -77,9 +76,10 @@ export async function enrichComparables(
     concurrency = DEFAULT_CONCURRENCY,
     fetchHtml = fetchListingHtml,
     extract = extractPrice,
+    extractImage = extractImageUrl,
   } = options;
 
   return mapWithConcurrency(candidates, concurrency, (candidate) =>
-    enrichOne(candidate, fetchHtml, extract),
+    enrichOne(candidate, fetchHtml, extract, extractImage),
   );
 }

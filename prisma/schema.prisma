@@ -273,6 +273,15 @@ model ComparableListing {
   // Deliberately separate from matchConfidence — see ComparablePriceEvidence.
   // Null for manual entries (nothing to attribute automated evidence to).
   priceEvidence   ComparablePriceEvidence?
+  // The candidate listing's own photo URL, deterministically extracted
+  // during enrichment (Phase 10.1) — null if the page published none.
+  imageUrl String?
+  // Raw Stage 2 vision-judgment signal (Phase 10.1) — how visually similar
+  // the candidate's photo is to the seller's own item photos. Null when no
+  // validated candidate image was available to compare. Deliberately
+  // separate from matchConfidence, which may already be the combined
+  // text/visual result (see providers/brave-discovery.ts).
+  visualSimilarity Float?
   rawMetadata Json?
 
   createdAt DateTime @default(now())

@@ -14,6 +14,7 @@ function candidate(overrides: Partial<ComparableCandidate> = {}): ComparableCand
     condition: "Good",
     recency: "listed 3 days ago",
     matchConfidence: 0.8,
+    imageUrl: null,
     ...overrides,
   };
 }

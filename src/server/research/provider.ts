@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { ImageInput } from "@/server/ai";
 
 export const COMPARABLE_PRICE_TYPES = ["ASKING", "SOLD", "UNKNOWN"] as const;
 
@@ -36,21 +37,32 @@ export const comparableCandidateSchema = z.object({
   matchConfidence: z.number(),
 });
 
-export type ComparableCandidate = z.infer<typeof comparableCandidateSchema>;
+export type ComparableCandidate = z.infer<typeof comparableCandidateSchema> & {
+  // The candidate listing's own photo URL, deterministically extracted from
+  // the same already-fetched HTML as price (enrichment/extract-image.ts) —
+  // never guessed by the AI, same reasoning as priceCents. Null until
+  // enrichment runs, and stays null if the page publishes no usable image.
+  imageUrl: string | null;
+};
 
 /**
  * Shared wire type: what any MarketResearchProvider must return. Extends a
- * discovered candidate with the two things only the enrichment pipeline can
- * supply: priceCents itself, and priceEvidence — the deterministic outcome
- * of trying to verify that price against the actual page (fetch +
+ * discovered candidate with the things only the enrichment/matching pipeline
+ * can supply: priceCents itself, and priceEvidence — the deterministic
+ * outcome of trying to verify that price against the actual page (fetch +
  * structured-data extraction), never the AI's own say-so. A provider that
  * can't do verification at all must still set priceEvidence explicitly
  * (e.g. to "UNVERIFIED") rather than omit it, so isUsableComparable can't
- * accidentally trust an unverified price by default.
+ * accidentally trust an unverified price by default. visualSimilarity is the
+ * raw Stage 2 (discovery/match-candidates-visual.ts) signal — null when no
+ * validated candidate image was available to compare against the seller's
+ * own photos, distinct from matchConfidence, which may already be the
+ * text/visual combination (see providers/brave-discovery.ts).
  */
 export type ComparableSearchResult = ComparableCandidate & {
   priceCents: number | null;
   priceEvidence: (typeof COMPARABLE_PRICE_EVIDENCE)[number];
+  visualSimilarity: number | null;
 };
 
 export interface MarketResearchQuery {
@@ -70,7 +82,15 @@ export interface MarketResearchQuery {
  */
 export interface MarketResearchProvider {
   readonly name: string;
-  findComparables(query: MarketResearchQuery): Promise<ComparableSearchResult[]>;
+  /**
+   * itemPhotos is optional so a provider with no visual-matching capability
+   * (or a future non-photo-aware provider) stays a valid implementer of this
+   * interface — only BraveDiscoveryComparableProvider currently reads it.
+   */
+  findComparables(
+    query: MarketResearchQuery,
+    itemPhotos?: ImageInput[],
+  ): Promise<ComparableSearchResult[]>;
 }
 
 export class MarketResearchProviderError extends Error {

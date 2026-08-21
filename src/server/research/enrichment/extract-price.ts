@@ -31,7 +31,7 @@ type StrategyResult =
   | { found: "ambiguous"; reason: string }
   | { found: true; priceCents: number; currency: "USD"; evidence: StructuredPriceEvidence };
 
-function parseTagAttrs(tag: string): Record<string, string> {
+export function parseTagAttrs(tag: string): Record<string, string> {
   const attrs: Record<string, string> = {};
   const attrRegex = /([a-zA-Z][a-zA-Z0-9:_-]*)\s*=\s*"([^"]*)"|([a-zA-Z][a-zA-Z0-9:_-]*)\s*=\s*'([^']*)'/g;
   let m: RegExpExecArray | null;
@@ -50,7 +50,7 @@ function parseTagAttrs(tag: string): Record<string, string> {
 // not HTML parsing) and meant to be scraped by exactly this kind of
 // consumer.
 
-function extractJsonLdBlocks(html: string): unknown[] {
+export function extractJsonLdBlocks(html: string): unknown[] {
   const blocks: unknown[] = [];
   const scriptRegex =
     /<script[^>]+type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
@@ -65,7 +65,7 @@ function extractJsonLdBlocks(html: string): unknown[] {
   return blocks;
 }
 
-function flattenJsonLdNodes(blocks: unknown[]): Record<string, unknown>[] {
+export function flattenJsonLdNodes(blocks: unknown[]): Record<string, unknown>[] {
   const nodes: Record<string, unknown>[] = [];
   const visit = (value: unknown) => {
     if (Array.isArray(value)) {
@@ -82,7 +82,7 @@ function flattenJsonLdNodes(blocks: unknown[]): Record<string, unknown>[] {
   return nodes;
 }
 
-function isProductNode(node: Record<string, unknown>): boolean {
+export function isProductNode(node: Record<string, unknown>): boolean {
   const type = node["@type"];
   if (typeof type === "string") return type === "Product";
   if (Array.isArray(type)) return type.includes("Product");
@@ -152,7 +152,7 @@ function extractFromJsonLd(html: string): StrategyResult {
 // still a deliberate, machine-readable signal the page publishes for link
 // previews and shopping crawlers.
 
-function findMetaContent(html: string, keys: string[]): string | null {
+export function findMetaContent(html: string, keys: string[]): string | null {
   const tagRegex = /<meta\b[^>]*>/gi;
   const tags = html.match(tagRegex) ?? [];
   for (const tag of tags) {

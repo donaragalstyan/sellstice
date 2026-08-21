@@ -4,6 +4,10 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { manualComparableSchema } from "@/lib/validation";
+import { imageStorage } from "@/server/storage";
+import { inferImageMediaType } from "@/server/storage/image-validation";
+import { selectPhotosForAnalysis } from "@/server/ai/item-analysis";
+import type { ImageInput } from "@/server/ai";
 import {
   findComparableListings,
   mapComparablesToCreateData,
@@ -28,6 +32,7 @@ export async function researchComparablesAction(itemId: string): Promise<MarketR
     include: {
       researchRuns: { orderBy: { createdAt: "desc" }, take: 1 },
       comparableListings: { select: { url: true, title: true, marketplace: true, priceCents: true } },
+      photos: { orderBy: { order: "asc" } },
     },
   });
   if (!item || item.userId !== session.user.id) return { error: "Item not found." };
@@ -53,9 +58,29 @@ export async function researchComparablesAction(itemId: string): Promise<MarketR
     };
   }
 
+  // Best-effort: a photo-loading failure must not block text-based research
+  // from running at all — Stage 2 visual confirmation is an enhancement,
+  // same reasoning as its own internal failure handling in
+  // providers/brave-discovery.ts.
+  let itemPhotos: ImageInput[] = [];
+  try {
+    itemPhotos = await Promise.all(
+      selectPhotosForAnalysis(item.photos).map(async (photo) => {
+        const mediaType = inferImageMediaType(photo.storageKey);
+        if (!mediaType) {
+          throw new Error(`Unsupported stored image type for photo ${photo.id}`);
+        }
+        const buffer = await imageStorage.read(photo.storageKey);
+        return { base64: buffer.toString("base64"), mediaType };
+      }),
+    );
+  } catch (err) {
+    console.error("Failed to load item photos for visual comparable matching:", err);
+  }
+
   let newResults;
   try {
-    const raw = await findComparableListings(query);
+    const raw = await findComparableListings(query, itemPhotos);
     const withinBatch = deduplicateComparables(raw);
     // Also dedupe against everything already stored for this item, so
     // re-running research accumulates genuinely new listings instead of
