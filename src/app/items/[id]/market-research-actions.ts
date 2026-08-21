@@ -43,6 +43,7 @@ export async function researchComparablesAction(itemId: string): Promise<MarketR
     category: item.category,
     size: item.size,
     condition: item.condition,
+    notableDetails: item.notableDetails,
   };
   if (!hasEnoughAttributesToResearch(query)) {
     return { error: "Add at least a brand or category before researching comparables." };

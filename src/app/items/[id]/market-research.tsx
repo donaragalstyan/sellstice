@@ -32,6 +32,7 @@ export function MarketResearch({
     category: item.category,
     size: null,
     condition: null,
+    notableDetails: null,
   });
 
   return (

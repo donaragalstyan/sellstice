@@ -5,7 +5,15 @@ import { MAX_QUERIES_PER_MARKETPLACE } from "../build-queries";
 import type { MarketResearchQuery } from "../../provider";
 
 function query(overrides: Partial<MarketResearchQuery> = {}): MarketResearchQuery {
-  return { brand: "Zara", color: null, category: "Hoodie", size: null, condition: null, ...overrides };
+  return {
+    brand: "Zara",
+    color: null,
+    category: "Hoodie",
+    size: null,
+    condition: null,
+    notableDetails: null,
+    ...overrides,
+  };
 }
 
 function jsonResponse(body: unknown, status = 200): Response {

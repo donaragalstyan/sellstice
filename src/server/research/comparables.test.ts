@@ -183,10 +183,10 @@ test("assessComparableQuality treats an unverified/blocked price the same as a m
 // --- Attribute guard -------------------------------------------------------
 
 test("hasEnoughAttributesToResearch requires at least brand or category", () => {
-  assert.equal(hasEnoughAttributesToResearch({ brand: "Zara", color: null, category: null, size: null, condition: null }), true);
-  assert.equal(hasEnoughAttributesToResearch({ brand: null, color: null, category: "Sweater", size: null, condition: null }), true);
-  assert.equal(hasEnoughAttributesToResearch({ brand: null, color: "Cream", category: null, size: "M", condition: null }), false);
-  assert.equal(hasEnoughAttributesToResearch({ brand: null, color: null, category: null, size: null, condition: null }), false);
+  assert.equal(hasEnoughAttributesToResearch({ brand: "Zara", color: null, category: null, size: null, condition: null, notableDetails: null }), true);
+  assert.equal(hasEnoughAttributesToResearch({ brand: null, color: null, category: "Sweater", size: null, condition: null, notableDetails: null }), true);
+  assert.equal(hasEnoughAttributesToResearch({ brand: null, color: "Cream", category: null, size: "M", condition: null, notableDetails: null }), false);
+  assert.equal(hasEnoughAttributesToResearch({ brand: null, color: null, category: null, size: null, condition: null, notableDetails: null }), false);
 });
 
 // --- Normalization -----------------------------------------------------

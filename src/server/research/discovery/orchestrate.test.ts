@@ -5,7 +5,7 @@ import type { DiscoveredCandidate, MarketplaceDiscoveryProvider } from "./types"
 import type { MarketResearchQuery } from "../provider";
 
 function query(): MarketResearchQuery {
-  return { brand: "Zara", color: null, category: "Hoodie", size: null, condition: null };
+  return { brand: "Zara", color: null, category: "Hoodie", size: null, condition: null, notableDetails: null };
 }
 
 function candidate(marketplace: string): DiscoveredCandidate {

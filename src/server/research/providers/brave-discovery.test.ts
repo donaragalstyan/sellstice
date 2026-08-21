@@ -25,7 +25,7 @@ function enrichWith(imageUrl: string | null) {
 }
 
 function query(): MarketResearchQuery {
-  return { brand: "Zara", color: "Green", category: "Hoodie", size: null, condition: null };
+  return { brand: "Zara", color: "Green", category: "Hoodie", size: null, condition: null, notableDetails: null };
 }
 
 function discovered(overrides: Partial<DiscoveredCandidate> = {}): DiscoveredCandidate {

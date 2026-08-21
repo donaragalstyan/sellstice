@@ -4,7 +4,15 @@ import { buildSearchQueries, MAX_QUERIES_PER_MARKETPLACE } from "./build-queries
 import type { MarketResearchQuery } from "../provider";
 
 function query(overrides: Partial<MarketResearchQuery> = {}): MarketResearchQuery {
-  return { brand: null, color: null, category: null, size: null, condition: null, ...overrides };
+  return {
+    brand: null,
+    color: null,
+    category: null,
+    size: null,
+    condition: null,
+    notableDetails: null,
+    ...overrides,
+  };
 }
 
 test("full attribute set produces a bounded query list", () => {
@@ -47,4 +55,43 @@ test("never returns duplicate queries", () => {
 test("whitespace-only attributes are treated as absent", () => {
   const result = buildSearchQueries(query({ brand: "  ", category: "Jeans" }));
   assert.deepEqual(result, ["Jeans"]);
+});
+
+// --- notableDetails → distinctive query snippet -------------------------
+
+test("a short notableDetails phrase is appended to the precise query only", () => {
+  const result = buildSearchQueries(
+    query({ brand: "Zara", color: "Green", category: "Hoodie", notableDetails: "Tiger graphic on front" }),
+  );
+  assert.equal(result[0], "Zara Green Hoodie Tiger graphic on front");
+  assert.equal(result[1], "Zara Hoodie", "the loose fallback must stay broad, without the distinctive detail");
+});
+
+test("only the first sentence/clause of notableDetails is used", () => {
+  const result = buildSearchQueries(
+    query({
+      brand: "Zara",
+      category: "Hoodie",
+      notableDetails: "Tiger graphic on front. Purchased in 2019 from the flagship store.",
+    }),
+  );
+  assert.equal(result[0], "Zara Hoodie Tiger graphic on front");
+});
+
+test("a long notableDetails clause is truncated rather than overwhelming the query", () => {
+  const longClause = "A".repeat(200);
+  const result = buildSearchQueries(query({ brand: "Zara", category: "Hoodie", notableDetails: longClause }));
+  assert.ok(result[0].length < longClause.length, "the query must not carry the full 200-char clause");
+});
+
+test("blank notableDetails is treated as absent, same as other whitespace-only fields", () => {
+  const result = buildSearchQueries(query({ brand: "Zara", category: "Hoodie", notableDetails: "   " }));
+  assert.equal(result[0], "Zara Hoodie");
+});
+
+test("notableDetails alone still produces a usable query, same as brand-only or category-only", () => {
+  // hasEnoughAttributesToResearch (comparables.ts) is what actually gates a
+  // research run on brand/category — this function stays agnostic to that
+  // and just joins whatever non-null attributes it's given.
+  assert.deepEqual(buildSearchQueries(query({ notableDetails: "Tiger graphic" })), ["Tiger graphic"]);
 });

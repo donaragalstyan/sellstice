@@ -71,6 +71,13 @@ export interface MarketResearchQuery {
   category: string | null;
   size: string | null;
   condition: string | null;
+  // The item's own free-text "notable details" field (user-entered, not an
+  // AI guess) — e.g. a distinctive graphic, pattern, or embroidery that a
+  // generic brand/color/category search would miss. Bounded at query-build
+  // time (discovery/build-queries.ts) since this field can hold up to 2000
+  // chars of free text (see lib/validation.ts), far more than a search
+  // query should ever carry.
+  notableDetails: string | null;
 }
 
 /**

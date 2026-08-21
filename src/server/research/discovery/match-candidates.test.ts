@@ -5,7 +5,7 @@ import { MarketResearchProviderError } from "../provider";
 import type { MarketResearchQuery } from "../provider";
 
 function query(): MarketResearchQuery {
-  return { brand: "Zara", color: "Green", category: "Hoodie", size: null, condition: null };
+  return { brand: "Zara", color: "Green", category: "Hoodie", size: null, condition: null, notableDetails: null };
 }
 
 function input(overrides: Partial<MatchCandidateInput> = {}): MatchCandidateInput {
