@@ -6,10 +6,20 @@ import {
   hasEnoughAttributesToResearch,
   type ComparableTier,
 } from "@/server/research/comparables";
+import {
+  computePriceRecommendation,
+  type PriceRecommendationConfidence,
+} from "@/server/research/price-recommendation";
 import { MarketResearchButton } from "./market-research-button";
 import { RefineComparablesButton } from "./refine-comparables-button";
 import { ManualComparableForm } from "./manual-comparable-form";
 import { DeleteComparableButton } from "./delete-comparable-button";
+
+const RECOMMENDATION_CONFIDENCE_LABEL: Record<PriceRecommendationConfidence, { text: string; className: string }> = {
+  HIGH: { text: "High confidence", className: "text-green-700 dark:text-green-400" },
+  MEDIUM: { text: "Medium confidence", className: "text-amber-700 dark:text-amber-400" },
+  LOW: { text: "Low confidence", className: "text-gray-500 dark:text-gray-400" },
+};
 
 const PRICE_TYPE_BADGE: Record<string, string> = {
   ASKING: "Asking",
@@ -50,6 +60,7 @@ export function MarketResearch({
   comparables: ComparableListing[];
 }) {
   const quality = assessComparableQuality(comparables);
+  const priceRecommendation = computePriceRecommendation(comparables);
   const canResearch = hasEnoughAttributesToResearch({
     brand: item.brand,
     color: null,
@@ -80,6 +91,44 @@ export function MarketResearch({
       )}
 
       {comparables.length > 0 && !quality.sufficient && <RefineComparablesButton itemId={itemId} />}
+
+      {priceRecommendation && (
+        <div className="flex flex-col gap-2 rounded-md border border-gray-300 p-3 text-sm">
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-medium">Price recommendation</span>
+            <span className={RECOMMENDATION_CONFIDENCE_LABEL[priceRecommendation.confidence].className}>
+              {RECOMMENDATION_CONFIDENCE_LABEL[priceRecommendation.confidence].text}
+            </span>
+          </div>
+          <p className="text-xs text-gray-500">
+            Based on {priceRecommendation.sampleSize} priced comparable
+            {priceRecommendation.sampleSize === 1 ? "" : "s"} (
+            {formatCents(priceRecommendation.comparablePriceRangeLowCents)}–
+            {formatCents(priceRecommendation.comparablePriceRangeHighCents)}, median{" "}
+            {formatCents(priceRecommendation.medianComparablePriceCents)}), weighted by match quality.
+          </p>
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
+            <div>
+              <dt className="text-xs text-gray-500">Quick sale</dt>
+              <dd className="font-medium">{formatCents(priceRecommendation.quickSalePriceCents)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-gray-500">Recommended listing</dt>
+              <dd className="font-medium">{formatCents(priceRecommendation.recommendedListingPriceCents)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-gray-500">Wait for buyer</dt>
+              <dd className="font-medium">{formatCents(priceRecommendation.waitForBuyerPriceCents)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-gray-500">Minimum acceptable</dt>
+              <dd className="font-medium">
+                {formatCents(priceRecommendation.recommendedMinimumAcceptablePriceCents)}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      )}
 
       {comparables.length > 0 && (
         <ul className="flex flex-col gap-2">
