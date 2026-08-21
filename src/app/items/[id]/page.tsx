@@ -10,6 +10,7 @@ import { PhotoUploadForm } from "./photo-upload-form";
 import { AiSuggestions } from "./ai-suggestions";
 import { PhotoCoach } from "./photo-coach";
 import { MarketResearch } from "./market-research";
+import { SellTiming } from "./sell-timing";
 
 export default async function ItemDetailPage({
   params,
@@ -45,6 +46,11 @@ export default async function ItemDetailPage({
     orderBy: { createdAt: "desc" },
   });
 
+  const latestSellTimingAnalysis = await prisma.sellTimingAnalysis.findFirst({
+    where: { itemId: item.id },
+    orderBy: { createdAt: "desc" },
+  });
+
   return (
     <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
       <div className="flex items-start justify-between">
@@ -75,6 +81,12 @@ export default async function ItemDetailPage({
         itemId={item.id}
         item={{ brand: item.brand, category: item.category }}
         comparables={comparables}
+      />
+
+      <SellTiming
+        itemId={item.id}
+        item={{ brand: item.brand, category: item.category }}
+        latestAnalysis={latestSellTimingAnalysis}
       />
 
       <section className="flex flex-col gap-3">

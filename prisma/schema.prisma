@@ -62,9 +62,9 @@ enum ItemCondition {
 // Deliberately separate from Listing (introduced in a later phase): a user
 // can own an item long before deciding whether/when to list it for sale.
 model Item {
-  id                   String         @id @default(cuid())
+  id                   String                  @id @default(cuid())
   userId               String
-  user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                 User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   brand                String?
   color                String?
   category             String?
@@ -72,14 +72,15 @@ model Item {
   condition            ItemCondition?
   notableDetails       String?
   acquisitionCostCents Int?
-  status               ItemStatus     @default(INVENTORY)
+  status               ItemStatus              @default(INVENTORY)
   photos               ItemPhoto[]
   aiAnalyses           ItemAIAnalysis[]
   photoCoachAnalyses   PhotoCoachAnalysis[]
   comparableListings   ComparableListing[]
   researchRuns         ComparableResearchRun[]
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
+  sellTimingAnalyses   SellTimingAnalysis[]
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
 
   @@index([userId])
 }
@@ -89,12 +90,12 @@ model Item {
 // looks up storageKey itself — storing a public URL here would either go
 // stale or (if kept in sync) be pure redundancy with `id`.
 model ItemPhoto {
-  id         String   @id @default(cuid())
-  itemId     String
-  item       Item     @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  storageKey String
-  order      Int      @default(0)
-  createdAt  DateTime @default(now())
+  id               String                 @id @default(cuid())
+  itemId           String
+  item             Item                   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  storageKey       String
+  order            Int                    @default(0)
+  createdAt        DateTime               @default(now())
   photoCoachScores PhotoCoachPhotoScore[]
 
   @@index([itemId])
@@ -110,15 +111,15 @@ model ItemAIAnalysis {
   item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
 
   brandValue          String?
-  brandConfidence      Float?
-  colorValue           String?
-  colorConfidence      Float?
-  itemTypeValue        String?
-  itemTypeConfidence   Float?
-  categoryValue        String?
-  categoryConfidence   Float?
-  conditionValue       ItemCondition?
-  conditionConfidence  Float?
+  brandConfidence     Float?
+  colorValue          String?
+  colorConfidence     Float?
+  itemTypeValue       String?
+  itemTypeConfidence  Float?
+  categoryValue       String?
+  categoryConfidence  Float?
+  conditionValue      ItemCondition?
+  conditionConfidence Float?
 
   styleKeywords           String[]
   visibleDetails          String[]
@@ -179,12 +180,12 @@ model PhotoCoachPhotoScore {
   score       Float
   isBestCover Boolean @default(false)
 
-  lightingOk       Boolean
-  lightingFeedback String?
-  framingOk        Boolean
-  framingFeedback  String?
-  backgroundOk       Boolean
-  backgroundFeedback String?
+  lightingOk           Boolean
+  lightingFeedback     String?
+  framingOk            Boolean
+  framingFeedback      String?
+  backgroundOk         Boolean
+  backgroundFeedback   String?
   shapeVisibleOk       Boolean
   shapeVisibleFeedback String?
 
@@ -237,7 +238,7 @@ model ComparableResearchRun {
   querySnapshot Json
   resultCount   Int
 
-  createdAt DateTime @default(now())
+  createdAt DateTime            @default(now())
   listings  ComparableListing[]
 
   @@index([itemId])
@@ -255,24 +256,24 @@ model ComparableListing {
   researchRunId String?
   researchRun   ComparableResearchRun? @relation(fields: [researchRunId], references: [id], onDelete: Cascade)
 
-  source      ComparableSource
-  title       String
-  marketplace String?
-  priceCents  Int?
-  priceType   ComparablePriceType @default(UNKNOWN)
-  url         String?
-  condition   String?
+  source              ComparableSource
+  title               String
+  marketplace         String?
+  priceCents          Int?
+  priceType           ComparablePriceType      @default(UNKNOWN)
+  url                 String?
+  condition           String?
   // Free text, deliberately not a Date — search snippets rarely give a real
   // date, and forcing one into a DateTime would fabricate false precision.
-  recency     String?
+  recency             String?
   // How well this listing matches the item's attributes (brand/category/
   // condition/etc.) — an AI judgment call. Null for manual entries (the user
   // is the source, not a model estimate). Deliberately separate from
   // priceEvidence — see that enum's doc comment.
-  matchConfidence Float?
+  matchConfidence     Float?
   // Deliberately separate from matchConfidence — see ComparablePriceEvidence.
   // Null for manual entries (nothing to attribute automated evidence to).
-  priceEvidence   ComparablePriceEvidence?
+  priceEvidence       ComparablePriceEvidence?
   // Human-readable reason behind priceEvidence when it isn't a trusted,
   // verified value (e.g. why extraction called a page UNVERIFIED, or what
   // BLOCKED it) — the same `reason` string extract-price.ts/fetch-listing.ts
@@ -282,17 +283,42 @@ model ComparableListing {
   priceEvidenceDetail String?
   // The candidate listing's own photo URL, deterministically extracted
   // during enrichment (Phase 10.1) — null if the page published none.
-  imageUrl String?
+  imageUrl            String?
   // Raw Stage 2 vision-judgment signal (Phase 10.1) — how visually similar
   // the candidate's photo is to the seller's own item photos. Null when no
   // validated candidate image was available to compare. Deliberately
   // separate from matchConfidence, which may already be the combined
   // text/visual result (see providers/brave-discovery.ts).
-  visualSimilarity Float?
-  rawMetadata Json?
+  visualSimilarity    Float?
+  rawMetadata         Json?
 
   createdAt DateTime @default(now())
 
   @@index([itemId])
   @@index([researchRunId])
+}
+
+enum SellTimingStance {
+  SELL_NOW
+  WAIT
+}
+
+// A single bounded LLM judgment (Phase 10.6), not a tool-calling agent: Sellstice
+// computes every signal it actually has (comp tiers/prices, condition, sold-vs-
+// asking ratio, goal timeline) and one call weighs them into a stance. One row
+// per run, same "disposable opinion, never canonical" shape as
+// PhotoCoachAnalysis — nothing here writes back to Item.
+model SellTimingAnalysis {
+  id     String @id @default(cuid())
+  itemId String
+  item   Item   @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  stance      SellTimingStance
+  confidence  Float
+  explanation String
+
+  modelId   String
+  createdAt DateTime @default(now())
+
+  @@index([itemId])
 }
