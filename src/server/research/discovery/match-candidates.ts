@@ -10,11 +10,15 @@ import { COMPARABLE_PRICE_TYPES, MarketResearchProviderError } from "../provider
 // tuned for a different task.
 const DEFAULT_MODEL = "claude-sonnet-5";
 const MODEL = process.env.MARKET_RESEARCH_MATCH_AI_MODEL?.trim() || DEFAULT_MODEL;
-// No search reasoning to pad this out — one structured judgment per
-// candidate over a small, fixed-size batch (bounded by discovery's own
-// request budget), so this stays modest rather than scaling with a
-// search-tool-driven response's unpredictable length.
-const MAX_TOKENS = 4_000;
+// Sonnet 5 runs adaptive thinking by default even with no `thinking` param
+// set, and those thinking tokens count against max_tokens. Empirically, a
+// 49-candidate batch (discovery's fan-out — 5 marketplaces x 2 queries x 8
+// results, before URL-shape filtering — can produce up to ~80) used ~4.4K
+// output tokens (thinking + judgment JSON combined) against the old 4_000
+// ceiling, truncating mid-response and breaking structured-output parsing.
+// 16_000 gives real headroom for the worst case while staying under the
+// SDK's streaming-required threshold for a single non-streaming call.
+const MAX_TOKENS = 16_000;
 
 export interface MatchCandidateInput {
   marketplace: string;
