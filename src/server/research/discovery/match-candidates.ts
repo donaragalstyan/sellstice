@@ -33,7 +33,7 @@ export interface MatchJudgment {
 }
 
 const judgmentSchema = z.object({
-  matchConfidence: z.number(),
+  matchConfidence: z.number().min(0).max(1),
   priceType: z.enum(COMPARABLE_PRICE_TYPES),
   condition: z.string().nullable(),
   recency: z.string().nullable(),

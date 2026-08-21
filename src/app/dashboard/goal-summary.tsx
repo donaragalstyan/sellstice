@@ -21,12 +21,11 @@ export function GoalSummary({ progress }: { progress: GoalProgressResult }) {
         </span>
       </div>
 
-      <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200">
-        <div
-          className="h-full bg-black"
-          style={{ width: `${Math.min(100, Math.max(0, progress.percentComplete))}%` }}
-        />
-      </div>
+      <progress
+        className="goal-progress"
+        value={Math.min(100, Math.max(0, progress.percentComplete))}
+        max={100}
+      />
 
       <p className="text-sm">
         {progress.paceStatus === "ON_TRACK" ? (
