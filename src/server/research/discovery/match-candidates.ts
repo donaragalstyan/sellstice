@@ -96,7 +96,11 @@ async function defaultParse(prompt: string, model: string): Promise<ParseResult>
   const response = await client.messages.parse({
     model,
     max_tokens: MAX_TOKENS,
-    output_config: { format: zodOutputFormat(responseSchema) },
+    // "medium" effort: this is a bounded judgment task (not open-ended
+    // reasoning), and the default "high" effort was measured spending more
+    // than half its output tokens on adaptive thinking (see MAX_TOKENS's
+    // comment above) — medium cuts that overhead without changing the task.
+    output_config: { format: zodOutputFormat(responseSchema), effort: "medium" },
     messages: [{ role: "user", content: prompt }],
   });
   return { stop_reason: response.stop_reason, parsed_output: response.parsed_output };

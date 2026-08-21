@@ -96,7 +96,10 @@ async function defaultParse(
   const response = await client.messages.parse({
     model,
     max_tokens: MAX_TOKENS,
-    output_config: { format: zodOutputFormat(responseSchema) },
+    // "medium" effort — same rationale as Stage 1 (match-candidates.ts):
+    // this is a bounded judgment task, and default "high" effort measured
+    // spending a large share of output tokens on adaptive thinking.
+    output_config: { format: zodOutputFormat(responseSchema), effort: "medium" },
     messages: [{ role: "user", content: buildContent(itemPhotos, candidates) }],
   });
   return { stop_reason: response.stop_reason, parsed_output: response.parsed_output };

@@ -171,6 +171,16 @@ export async function runRefinementAgent(deps: RefinementAgentDeps): Promise<Ref
     model: MODEL,
     max_tokens: MAX_TOKENS,
     max_iterations: MAX_ITERATIONS,
+    // "medium" effort — deciding between a small set of retry strategies is
+    // a bounded task, not open-ended reasoning; same rationale as the
+    // Stage 1/Stage 2 matching calls.
+    output_config: { effort: "medium" },
+    // Top-level auto-caching: the tool definitions + initial prompt are
+    // identical across every turn of this loop (only the trailing
+    // tool_result differs), so this can cut real cost on retry turns 2+.
+    // No downside if the prefix falls under the ~1024-token cache minimum —
+    // it just silently doesn't cache.
+    cache_control: { type: "ephemeral" },
     tools,
     messages: [{ role: "user", content: buildInitialPrompt(deps, baselineQuality.tierCounts) }],
   });
