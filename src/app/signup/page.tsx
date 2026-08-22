@@ -10,29 +10,21 @@ export default function SignupPage() {
   const [state, formAction, pending] = useActionState(signupAction, initialState);
 
   return (
-    <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 p-8">
-      <h1 className="text-xl font-semibold">Create your account</h1>
+    <main className="animate-in mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 p-6 sm:p-8">
+      <div>
+        <span className="eyebrow">Get started</span>
+        <h1 className="text-2xl font-semibold">Create your account</h1>
+      </div>
       <form action={formAction} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="field">
           Name (optional)
-          <input
-            name="name"
-            type="text"
-            autoComplete="name"
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-          />
+          <input name="name" type="text" autoComplete="name" className="input" />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="field">
           Email
-          <input
-            name="email"
-            type="email"
-            required
-            autoComplete="email"
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-          />
+          <input name="email" type="email" required autoComplete="email" className="input" />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="field">
           Password
           <input
             name="password"
@@ -40,26 +32,16 @@ export default function SignupPage() {
             required
             minLength={8}
             autoComplete="new-password"
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="input"
           />
         </label>
-        {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-        <button
-          type="submit"
-          disabled={pending}
-          className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
-        >
+        {state.error && <p className="text-sm" style={{ color: "var(--color-danger)" }}>{state.error}</p>}
+        <button type="submit" disabled={pending} className="btn btn-primary">
           {pending ? "Creating account…" : "Sign up"}
         </button>
       </form>
-      <p className="text-sm text-gray-600">
-        Already have an account?{" "}
-        <Link
-          href="/login"
-          className="font-medium text-blue-600 underline hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-        >
-          Log in
-        </Link>
+      <p className="text-sm" style={{ color: "var(--color-muted)" }}>
+        Already have an account? <Link href="/login" className="link font-medium">Log in</Link>
       </p>
     </main>
   );

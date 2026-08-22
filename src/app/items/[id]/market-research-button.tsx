@@ -30,14 +30,14 @@ export function MarketResearchButton({
             setError(result.error);
           })
         }
-        className="self-start rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-50"
+        className="btn btn-secondary self-start"
       >
         {pending ? "Researching…" : "Research comparables"}
       </button>
       {disabled && disabledReason && (
-        <p className="text-xs text-gray-500">{disabledReason}</p>
+        <p className="text-xs" style={{ color: "var(--color-muted)" }}>{disabledReason}</p>
       )}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm" style={{ color: "var(--color-danger)" }}>{error}</p>}
     </div>
   );
 }

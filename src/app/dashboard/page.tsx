@@ -27,32 +27,34 @@ export default async function DashboardPage() {
     : null;
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">Dashboard</h1>
+    <main className="animate-in page max-w-2xl">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <span className="eyebrow">Your plan</span>
+          <h1 className="text-2xl font-semibold">Dashboard</h1>
+        </div>
         <form
           action={async () => {
             "use server";
             await signOut({ redirectTo: "/" });
           }}
         >
-          <button
-            type="submit"
-            className="rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50"
-          >
+          <button type="submit" className="btn btn-secondary self-start">
             Sign out
           </button>
         </form>
       </div>
-      <p className="text-gray-600">
-        Signed in as <span className="font-medium">{session?.user?.email}</span>.
+      <p style={{ color: "var(--color-muted)" }}>
+        Signed in as <span className="font-medium" style={{ color: "var(--color-ink)" }}>{session?.user?.email}</span>.
       </p>
 
       {goal && progress ? (
         <div className="flex flex-col gap-6">
           <GoalSummary progress={progress} />
           <details className="text-sm">
-            <summary className="cursor-pointer text-gray-600">Edit goal</summary>
+            <summary className="cursor-pointer" style={{ color: "var(--color-muted)" }}>
+              Edit goal
+            </summary>
             <div className="mt-3">
               <GoalForm
                 goalId={goal.id}
@@ -63,9 +65,9 @@ export default async function DashboardPage() {
           </details>
         </div>
       ) : (
-        <div className="flex flex-col gap-4 rounded-lg border border-gray-300 p-5">
+        <div className="card">
           <h2 className="text-sm font-medium">Set your resale goal</h2>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm" style={{ color: "var(--color-muted)" }}>
             How much do you want to make, and by when? We&apos;ll turn that into a
             pace you can track.
           </p>
@@ -73,22 +75,19 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      <Link
-        href="/items"
-        className="flex items-center justify-between rounded-lg border border-gray-300 p-5 hover:bg-gray-50 dark:hover:bg-white/5"
-      >
+      <Link href="/items" className="card card-row interactive">
         <div>
           <h2 className="text-sm font-medium">Inventory</h2>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm" style={{ color: "var(--color-muted)" }}>
             {itemCount === 0
               ? "No items yet — add the first thing you're thinking of selling."
               : `${itemCount} item${itemCount === 1 ? "" : "s"} in inventory.`}
           </p>
         </div>
-        <span className="text-sm text-blue-600 underline dark:text-blue-400">Manage →</span>
+        <span className="link shrink-0 text-sm">Manage →</span>
       </Link>
 
-      <div className="rounded-lg border border-dashed border-gray-300 p-6 text-sm text-gray-500">
+      <div className="card card-dashed text-sm" style={{ color: "var(--color-muted)" }}>
         Listings will show up here in a later phase.
       </div>
     </main>

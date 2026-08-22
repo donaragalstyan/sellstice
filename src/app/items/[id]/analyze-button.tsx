@@ -24,14 +24,14 @@ export function AnalyzeButton({ itemId, disabled }: { itemId: string; disabled: 
             setError(result.error);
           })
         }
-        className="self-start rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-50"
+        className="btn btn-secondary self-start"
       >
         {pending ? "Analyzing…" : "Analyze photos with AI"}
       </button>
       {disabled && (
-        <p className="text-xs text-gray-500">Add a photo first to enable analysis.</p>
+        <p className="text-xs" style={{ color: "var(--color-muted)" }}>Add a photo first to enable analysis.</p>
       )}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm" style={{ color: "var(--color-danger)" }}>{error}</p>}
     </div>
   );
 }

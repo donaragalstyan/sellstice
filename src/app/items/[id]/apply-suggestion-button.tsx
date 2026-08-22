@@ -25,7 +25,7 @@ export function ApplySuggestionButton({
       type="button"
       disabled={pending}
       onClick={() => startTransition(() => applySuggestionAction(itemId, analysisId, field))}
-      className="text-xs text-blue-600 underline hover:text-blue-700 disabled:opacity-50 dark:text-blue-400 dark:hover:text-blue-300"
+      className="link text-xs disabled:opacity-50"
     >
       {pending ? "Applying…" : "Apply"}
     </button>

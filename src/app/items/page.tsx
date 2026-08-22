@@ -14,36 +14,33 @@ export default async function ItemsPage() {
   });
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 p-8">
-      <div className="flex items-center justify-between">
+    <main className="animate-in page max-w-3xl">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <Link href="/dashboard" className="text-sm text-blue-600 underline dark:text-blue-400">
+          <Link href="/dashboard" className="link text-sm">
             ← Dashboard
           </Link>
-          <h1 className="text-xl font-semibold">Inventory</h1>
+          <h1 className="text-2xl font-semibold">Inventory</h1>
         </div>
-        <Link
-          href="/items/new"
-          className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
-        >
+        <Link href="/items/new" className="btn btn-primary self-start">
           Add item
         </Link>
       </div>
 
       {items.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-gray-300 p-6 text-sm text-gray-500">
+        <div className="card card-dashed text-sm" style={{ color: "var(--color-muted)" }}>
           No items yet. Add the first thing you&apos;re thinking of selling —
           you don&apos;t have to decide whether to list it yet.
         </div>
       ) : (
-        <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
           {items.map((item) => (
             <li key={item.id}>
-              <Link
-                href={`/items/${item.id}`}
-                className="flex flex-col gap-2 rounded-lg border border-gray-300 p-3 hover:bg-gray-50 dark:hover:bg-white/5"
-              >
-                <div className="flex aspect-square items-center justify-center overflow-hidden rounded-md bg-gray-100 dark:bg-white/10">
+              <Link href={`/items/${item.id}`} className="card interactive gap-2 p-3">
+                <div
+                  className="flex aspect-square items-center justify-center overflow-hidden rounded-md"
+                  style={{ background: "var(--color-surface-2)" }}
+                >
                   {item.photos[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -52,11 +49,13 @@ export default async function ItemsPage() {
                       className="h-full w-full object-cover"
                     />
                   ) : (
-                    <span className="text-xs text-gray-400">No photo</span>
+                    <span className="text-xs" style={{ color: "var(--color-muted)" }}>No photo</span>
                   )}
                 </div>
                 <span className="text-sm font-medium">{getItemDisplayLabel(item)}</span>
-                <span className="text-xs text-gray-500">{ITEM_STATUS_LABELS[item.status]}</span>
+                <span className="text-xs" style={{ color: "var(--color-muted)" }}>
+                  {ITEM_STATUS_LABELS[item.status]}
+                </span>
               </Link>
             </li>
           ))}

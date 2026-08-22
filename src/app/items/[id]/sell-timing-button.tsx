@@ -22,14 +22,14 @@ export function SellTimingButton({ itemId, disabled }: { itemId: string; disable
             setError(result.error);
           })
         }
-        className="self-start rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-50"
+        className="btn btn-secondary self-start"
       >
         {pending ? "Thinking…" : "Get sell-timing recommendation"}
       </button>
       {disabled && (
-        <p className="text-xs text-gray-500">Add a brand or category first.</p>
+        <p className="text-xs" style={{ color: "var(--color-muted)" }}>Add a brand or category first.</p>
       )}
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && <p className="text-sm" style={{ color: "var(--color-danger)" }}>{error}</p>}
     </div>
   );
 }

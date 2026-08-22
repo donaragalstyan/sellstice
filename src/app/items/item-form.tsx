@@ -29,53 +29,34 @@ export function ItemForm({ mode, itemId, defaultValues }: ItemFormProps) {
     <form action={formAction} className="flex flex-col gap-4">
       {itemId && <input type="hidden" name="itemId" value={itemId} />}
 
-      <div className="grid grid-cols-2 gap-4">
-        <label className="flex flex-col gap-1 text-sm">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <label className="field">
           Brand
-          <input
-            name="brand"
-            type="text"
-            defaultValue={defaultValues?.brand ?? ""}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-          />
+          <input name="brand" type="text" defaultValue={defaultValues?.brand ?? ""} className="input" />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="field">
           Color
-          <input
-            name="color"
-            type="text"
-            defaultValue={defaultValues?.color ?? ""}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-          />
+          <input name="color" type="text" defaultValue={defaultValues?.color ?? ""} className="input" />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="field">
           Category
           <input
             name="category"
             type="text"
             placeholder="Sweater, jeans, sneakers…"
             defaultValue={defaultValues?.category ?? ""}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="input"
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="field">
           Size
-          <input
-            name="size"
-            type="text"
-            defaultValue={defaultValues?.size ?? ""}
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-          />
+          <input name="size" type="text" defaultValue={defaultValues?.size ?? ""} className="input" />
         </label>
       </div>
 
-      <label className="flex flex-col gap-1 text-sm">
+      <label className="field">
         Condition
-        <select
-          name="condition"
-          defaultValue={defaultValues?.condition ?? ""}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
-        >
+        <select name="condition" defaultValue={defaultValues?.condition ?? ""} className="input">
           <option value="">Unknown</option>
           {ITEM_CONDITIONS.map((value) => (
             <option key={value} value={value}>
@@ -85,18 +66,18 @@ export function ItemForm({ mode, itemId, defaultValues }: ItemFormProps) {
         </select>
       </label>
 
-      <label className="flex flex-col gap-1 text-sm">
+      <label className="field">
         Notes
         <textarea
           name="notableDetails"
           rows={3}
           placeholder="Flaws, materials, anything worth remembering later…"
           defaultValue={defaultValues?.notableDetails ?? ""}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          className="input"
         />
       </label>
 
-      <label className="flex flex-col gap-1 text-sm">
+      <label className="field">
         What you paid for it (optional)
         <input
           name="acquisitionCost"
@@ -108,30 +89,26 @@ export function ItemForm({ mode, itemId, defaultValues }: ItemFormProps) {
               ? defaultValues.acquisitionCostCents / 100
               : ""
           }
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          className="input"
         />
       </label>
 
       {mode === "create" && (
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="field">
           Photos (optional, up to 8)
           <input
             name="photos"
             type="file"
             accept="image/jpeg,image/png,image/webp"
             multiple
-            className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+            className="input"
           />
         </label>
       )}
 
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
+      {state.error && <p className="text-sm" style={{ color: "var(--color-danger)" }}>{state.error}</p>}
 
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
-      >
+      <button type="submit" disabled={pending} className="btn btn-primary self-start">
         {pending ? "Saving…" : mode === "create" ? "Add item" : "Save changes"}
       </button>
     </form>

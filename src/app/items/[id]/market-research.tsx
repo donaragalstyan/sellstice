@@ -72,7 +72,7 @@ export function MarketResearch({
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium text-gray-600">Market research</h2>
+      <h2 className="text-sm font-medium" style={{ color: "var(--color-muted)" }}>Market research</h2>
 
       <MarketResearchButton
         itemId={itemId}
@@ -93,14 +93,14 @@ export function MarketResearch({
       {comparables.length > 0 && !quality.sufficient && <RefineComparablesButton itemId={itemId} />}
 
       {priceRecommendation && (
-        <div className="flex flex-col gap-2 rounded-md border border-gray-300 p-3 text-sm">
-          <div className="flex items-center justify-between gap-2">
+        <div className="card text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="font-medium">Price recommendation</span>
             <span className={RECOMMENDATION_CONFIDENCE_LABEL[priceRecommendation.confidence].className}>
               {RECOMMENDATION_CONFIDENCE_LABEL[priceRecommendation.confidence].text}
             </span>
           </div>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs" style={{ color: "var(--color-muted)" }}>
             Based on {priceRecommendation.sampleSize} priced comparable
             {priceRecommendation.sampleSize === 1 ? "" : "s"} (
             {formatCents(priceRecommendation.comparablePriceRangeLowCents)}–
@@ -109,19 +109,19 @@ export function MarketResearch({
           </p>
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
             <div>
-              <dt className="text-xs text-gray-500">Quick sale</dt>
+              <dt className="text-xs" style={{ color: "var(--color-muted)" }}>Quick sale</dt>
               <dd className="font-medium">{formatCents(priceRecommendation.quickSalePriceCents)}</dd>
             </div>
             <div>
-              <dt className="text-xs text-gray-500">Recommended listing</dt>
-              <dd className="font-medium">{formatCents(priceRecommendation.recommendedListingPriceCents)}</dd>
+              <dt className="text-xs" style={{ color: "var(--color-muted)" }}>Recommended listing</dt>
+              <dd className="text-gradient font-semibold">{formatCents(priceRecommendation.recommendedListingPriceCents)}</dd>
             </div>
             <div>
-              <dt className="text-xs text-gray-500">Wait for buyer</dt>
+              <dt className="text-xs" style={{ color: "var(--color-muted)" }}>Wait for buyer</dt>
               <dd className="font-medium">{formatCents(priceRecommendation.waitForBuyerPriceCents)}</dd>
             </div>
             <div>
-              <dt className="text-xs text-gray-500">Minimum acceptable</dt>
+              <dt className="text-xs" style={{ color: "var(--color-muted)" }}>Minimum acceptable</dt>
               <dd className="font-medium">
                 {formatCents(priceRecommendation.recommendedMinimumAcceptablePriceCents)}
               </dd>
@@ -142,19 +142,11 @@ export function MarketResearch({
                   ? { text: "Visually confirmed", className: "text-green-700 dark:text-green-400" }
                   : { text: "Visual mismatch", className: "text-amber-700 dark:text-amber-400" };
             return (
-              <li
-                key={c.id}
-                className="flex flex-col gap-1 rounded-md border border-gray-300 p-3 text-sm"
-              >
+              <li key={c.id} className="card gap-1 p-3 text-sm">
                 <div className="flex items-start justify-between gap-2">
                   <span className="font-medium">
                     {c.url ? (
-                      <a
-                        href={c.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-blue-600 underline hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                      >
+                      <a href={c.url} target="_blank" rel="noopener noreferrer" className="link">
                         {c.title}
                       </a>
                     ) : (
@@ -163,8 +155,8 @@ export function MarketResearch({
                   </span>
                   <DeleteComparableButton itemId={itemId} comparableId={c.id} />
                 </div>
-                <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                  <span className="rounded bg-gray-100 px-1.5 py-0.5 dark:bg-white/10">
+                <div className="flex flex-wrap items-center gap-2 text-xs" style={{ color: "var(--color-muted)" }}>
+                  <span className="rounded px-1.5 py-0.5" style={{ background: "var(--color-surface-2)" }}>
                     {SOURCE_BADGE[c.source] ?? c.source}
                   </span>
                   {c.marketplace && <span>{c.marketplace}</span>}

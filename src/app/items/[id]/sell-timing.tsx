@@ -28,20 +28,22 @@ export function SellTiming({
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium text-gray-600">Sell now or wait?</h2>
+      <h2 className="text-sm font-medium" style={{ color: "var(--color-muted)" }}>Sell now or wait?</h2>
 
       <SellTimingButton itemId={itemId} disabled={!canAssess} />
 
       {latestAnalysis && (
-        <div className="flex flex-col gap-2 rounded-md border border-gray-300 p-3 text-sm">
-          <div className="flex items-center justify-between gap-2">
+        <div className="card text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <span className={STANCE_BADGE[latestAnalysis.stance]?.className}>
               {STANCE_BADGE[latestAnalysis.stance]?.text ?? latestAnalysis.stance}
             </span>
-            <span className="text-xs text-gray-500">{formatConfidence(latestAnalysis.confidence)}</span>
+            <span className="text-xs" style={{ color: "var(--color-muted)" }}>
+              {formatConfidence(latestAnalysis.confidence)}
+            </span>
           </div>
           <p>{latestAnalysis.explanation}</p>
-          <p className="text-xs text-gray-400">
+          <p className="text-xs" style={{ color: "var(--color-muted)" }}>
             AI-generated opinion based on comps, condition, and your goal timeline — not financial advice.
           </p>
         </div>

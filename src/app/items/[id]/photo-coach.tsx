@@ -37,11 +37,11 @@ export function PhotoCoach({
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium text-gray-600">Photo coach</h2>
+      <h2 className="text-sm font-medium" style={{ color: "var(--color-muted)" }}>Photo coach</h2>
       <PhotoCoachButton itemId={itemId} disabled={photoCount === 0} />
 
       {latestAnalysis && (
-        <div className="flex flex-col gap-3 rounded-lg border border-gray-300 p-4">
+        <div className="card">
           {bestCover && (
             <p className="text-sm font-medium">
               Best cover: Photo {bestCover.photoOrder + 1} — {bestCover.score.toFixed(1)}/10
@@ -55,7 +55,7 @@ export function PhotoCoach({
               ))}
             </ul>
           ) : (
-            <p className="text-sm text-gray-600">No issues found with the current photos.</p>
+            <p className="text-sm" style={{ color: "var(--color-muted)" }}>No issues found with the current photos.</p>
           )}
 
           {latestAnalysis.missingShots.length > 0 && (
@@ -69,7 +69,10 @@ export function PhotoCoach({
           <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">
             {sortedScores.map((s) => (
               <li key={s.id} className="flex flex-col gap-1">
-                <div className="relative aspect-square overflow-hidden rounded-md bg-gray-100 dark:bg-white/10">
+                <div
+                  className="relative aspect-square overflow-hidden rounded-md"
+                  style={{ background: "var(--color-surface-2)" }}
+                >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={`/api/photos/${s.photo.id}`}
@@ -80,17 +83,20 @@ export function PhotoCoach({
                     {s.score.toFixed(1)}
                   </span>
                   {s.isBestCover && (
-                    <span className="absolute top-1 right-1 rounded bg-blue-600 px-1.5 py-0.5 text-xs font-medium text-white">
+                    <span
+                      className="absolute top-1 right-1 rounded px-1.5 py-0.5 text-xs font-medium text-white"
+                      style={{ backgroundImage: "var(--gradient-solstice)" }}
+                    >
                       Cover
                     </span>
                   )}
                 </div>
-                <span className="text-xs text-gray-500">Photo {s.photoOrder + 1}</span>
+                <span className="text-xs" style={{ color: "var(--color-muted)" }}>Photo {s.photoOrder + 1}</span>
               </li>
             ))}
           </ul>
 
-          <p className="text-xs text-gray-400">
+          <p className="text-xs" style={{ color: "var(--color-muted)" }}>
             AI-generated feedback — advice only. Your photos are never changed or regenerated.
           </p>
         </div>

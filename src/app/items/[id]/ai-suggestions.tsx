@@ -19,7 +19,7 @@ function SuggestionRow({ itemId, analysisId, field, label, value, confidence, ap
   if (value == null) {
     return (
       <div className="flex items-center justify-between text-sm">
-        <span className="text-gray-500">{label}: not visible in these photos</span>
+        <span style={{ color: "var(--color-muted)" }}>{label}: not visible in these photos</span>
       </div>
     );
   }
@@ -27,10 +27,10 @@ function SuggestionRow({ itemId, analysisId, field, label, value, confidence, ap
   const confidenceLabel = formatConfidence(confidence);
 
   return (
-    <div className="flex items-center justify-between text-sm">
+    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
       <span>
-        <span className="text-gray-500">{label}:</span> {value}
-        {confidenceLabel && <span className="ml-1 text-xs text-gray-400">({confidenceLabel})</span>}
+        <span style={{ color: "var(--color-muted)" }}>{label}:</span> {value}
+        {confidenceLabel && <span className="ml-1 text-xs" style={{ color: "var(--color-muted)" }}>({confidenceLabel})</span>}
       </span>
       <ApplySuggestionButton itemId={itemId} analysisId={analysisId} field={field} applied={applied} />
     </div>
@@ -41,8 +41,7 @@ function SuggestionList({ title, items }: { title: string; items: string[] }) {
   if (items.length === 0) return null;
   return (
     <div className="text-sm">
-      <span className="text-gray-500">{title}:</span>{" "}
-      <span>{items.join(", ")}</span>
+      <span style={{ color: "var(--color-muted)" }}>{title}:</span> <span>{items.join(", ")}</span>
     </div>
   );
 }
@@ -58,11 +57,11 @@ export function AiSuggestions({
 }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-sm font-medium text-gray-600">AI suggestions</h2>
+      <h2 className="text-sm font-medium" style={{ color: "var(--color-muted)" }}>AI suggestions</h2>
       <AnalyzeButton itemId={itemId} disabled={photoCount === 0} />
 
       {latestAnalysis && (
-        <div className="flex flex-col gap-2 rounded-lg border border-gray-300 p-4">
+        <div className="card">
           <SuggestionRow
             itemId={itemId}
             analysisId={latestAnalysis.id}
@@ -106,7 +105,7 @@ export function AiSuggestions({
 
           {latestAnalysis.itemTypeValue && (
             <div className="text-sm">
-              <span className="text-gray-500">Item type (for reference):</span>{" "}
+              <span style={{ color: "var(--color-muted)" }}>Item type (for reference):</span>{" "}
               {latestAnalysis.itemTypeValue}
             </div>
           )}
@@ -118,7 +117,7 @@ export function AiSuggestions({
             items={latestAnalysis.missingPhotoSuggestions}
           />
 
-          <p className="text-xs text-gray-400">
+          <p className="text-xs" style={{ color: "var(--color-muted)" }}>
             AI-generated suggestions — review before applying. Nothing here changes your item
             until you click Apply.
           </p>

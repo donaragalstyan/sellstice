@@ -11,13 +11,17 @@ export function PhotoGallery({ photos }: { photos: Photo[] }) {
   const [pending, startTransition] = useTransition();
 
   if (photos.length === 0) {
-    return <p className="text-sm text-gray-500">No photos yet.</p>;
+    return <p className="text-sm" style={{ color: "var(--color-muted)" }}>No photos yet.</p>;
   }
 
   return (
-    <ul className="grid grid-cols-4 gap-3">
+    <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4">
       {photos.map((photo) => (
-        <li key={photo.id} className="group relative aspect-square overflow-hidden rounded-md bg-gray-100 dark:bg-white/10">
+        <li
+          key={photo.id}
+          className="group relative aspect-square overflow-hidden rounded-md"
+          style={{ background: "var(--color-surface-2)" }}
+        >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={`/api/photos/${photo.id}`} alt="" className="h-full w-full object-cover" />
           <button

@@ -25,12 +25,12 @@ export function RefineComparablesButton({ itemId }: { itemId: string }) {
             setSummary(result.outcome?.summary ?? null);
           })
         }
-        className="self-start rounded-md border border-gray-300 px-3 py-1.5 text-sm hover:bg-gray-50 disabled:opacity-50"
+        className="btn btn-secondary self-start"
       >
         {pending ? "Refining…" : "Refine further"}
       </button>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      {summary && <p className="text-sm text-gray-600 dark:text-gray-400">{summary}</p>}
+      {error && <p className="text-sm" style={{ color: "var(--color-danger)" }}>{error}</p>}
+      {summary && <p className="text-sm" style={{ color: "var(--color-muted)" }}>{summary}</p>}
     </div>
   );
 }

@@ -12,7 +12,8 @@ export function DeleteItemButton({ itemId }: { itemId: string }) {
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="rounded-md border border-red-300 px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+        className="btn self-start"
+        style={{ border: "1px solid var(--color-danger)", color: "var(--color-danger)", background: "transparent" }}
       >
         Delete item
       </button>
@@ -20,21 +21,17 @@ export function DeleteItemButton({ itemId }: { itemId: string }) {
   }
 
   return (
-    <div className="flex items-center gap-2 text-sm">
-      <span className="text-gray-600">Delete this item and its photos?</span>
+    <div className="flex flex-wrap items-center gap-2 text-sm">
+      <span style={{ color: "var(--color-muted)" }}>Delete this item and its photos?</span>
       <button
         type="button"
         disabled={pending}
         onClick={() => startTransition(() => deleteItemAction(itemId))}
-        className="rounded-md bg-red-600 px-3 py-1.5 font-medium text-white hover:bg-red-700 disabled:opacity-50"
+        className="btn btn-danger"
       >
         {pending ? "Deleting…" : "Confirm delete"}
       </button>
-      <button
-        type="button"
-        onClick={() => setConfirming(false)}
-        className="rounded-md border border-gray-300 px-3 py-1.5 hover:bg-gray-50"
-      >
+      <button type="button" onClick={() => setConfirming(false)} className="btn btn-secondary">
         Cancel
       </button>
     </div>

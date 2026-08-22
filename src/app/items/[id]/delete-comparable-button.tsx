@@ -17,7 +17,8 @@ export function DeleteComparableButton({
       type="button"
       disabled={pending}
       onClick={() => startTransition(() => deleteComparableAction(itemId, comparableId))}
-      className="text-xs text-red-600 underline hover:text-red-700 disabled:opacity-50 dark:text-red-400 dark:hover:text-red-300"
+      className="text-xs underline decoration-dotted disabled:opacity-50"
+      style={{ color: "var(--color-danger)" }}
     >
       {pending ? "Removing…" : "Remove"}
     </button>

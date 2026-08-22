@@ -52,19 +52,19 @@ export default async function ItemDetailPage({
   });
 
   return (
-    <main className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-6 p-8">
-      <div className="flex items-start justify-between">
+    <main className="animate-in page max-w-2xl">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <Link href="/items" className="text-sm text-blue-600 underline dark:text-blue-400">
+          <Link href="/items" className="link text-sm">
             ← Inventory
           </Link>
-          <h1 className="text-xl font-semibold">{getItemDisplayLabel(item)}</h1>
+          <h1 className="text-2xl font-semibold">{getItemDisplayLabel(item)}</h1>
         </div>
         <DeleteItemButton itemId={item.id} />
       </div>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-gray-600">Photos</h2>
+        <h2 className="text-sm font-medium" style={{ color: "var(--color-muted)" }}>Photos</h2>
         <PhotoGallery photos={item.photos} />
         <PhotoUploadForm itemId={item.id} />
       </section>
@@ -90,7 +90,7 @@ export default async function ItemDetailPage({
       />
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-medium text-gray-600">Details</h2>
+        <h2 className="text-sm font-medium" style={{ color: "var(--color-muted)" }}>Details</h2>
         <ItemForm
           mode="edit"
           itemId={item.id}

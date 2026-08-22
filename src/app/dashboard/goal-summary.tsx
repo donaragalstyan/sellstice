@@ -11,12 +11,12 @@ export function GoalSummary({ progress }: { progress: GoalProgressResult }) {
   const paceAmount = formatCents(Math.abs(progress.paceDeltaCents));
 
   return (
-    <div className="flex flex-col gap-4 rounded-lg border border-gray-300 p-5">
-      <div className="flex items-baseline justify-between">
-        <span className="text-2xl font-semibold">
+    <div className="card">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <span className="text-gradient text-2xl font-semibold sm:text-3xl">
           {formatCents(progress.revenueEarnedCents)}
         </span>
-        <span className="text-sm text-gray-600">
+        <span className="text-sm" style={{ color: "var(--color-muted)" }}>
           of {formatCents(progress.targetAmountCents)} ({progress.percentComplete}%)
         </span>
       </div>
@@ -41,24 +41,29 @@ export function GoalSummary({ progress }: { progress: GoalProgressResult }) {
         )}
       </p>
 
-      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-        <dt className="text-gray-600">Remaining</dt>
-        <dd className="text-right">{formatCents(progress.revenueRemainingCents)}</dd>
-
-        <dt className="text-gray-600">Monthly target</dt>
-        <dd className="text-right">{formatCents(progress.monthlyTargetRemainingCents)}/mo</dd>
-
-        <dt className="text-gray-600">Weekly target</dt>
-        <dd className="text-right">{formatCents(progress.weeklyTargetRemainingCents)}/wk</dd>
-
-        <dt className="text-gray-600">Days remaining</dt>
-        <dd className="text-right">{progress.daysRemaining}</dd>
+      <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm sm:grid-cols-4">
+        <div>
+          <dt style={{ color: "var(--color-muted)" }}>Remaining</dt>
+          <dd className="font-medium">{formatCents(progress.revenueRemainingCents)}</dd>
+        </div>
+        <div>
+          <dt style={{ color: "var(--color-muted)" }}>Monthly target</dt>
+          <dd className="font-medium">{formatCents(progress.monthlyTargetRemainingCents)}/mo</dd>
+        </div>
+        <div>
+          <dt style={{ color: "var(--color-muted)" }}>Weekly target</dt>
+          <dd className="font-medium">{formatCents(progress.weeklyTargetRemainingCents)}/wk</dd>
+        </div>
+        <div>
+          <dt style={{ color: "var(--color-muted)" }}>Days remaining</dt>
+          <dd className="font-medium">{progress.daysRemaining}</dd>
+        </div>
 
         {progress.estimatedAdditionalSalesNeeded !== null && (
-          <>
-            <dt className="text-gray-600">Est. sales needed</dt>
-            <dd className="text-right">{progress.estimatedAdditionalSalesNeeded}</dd>
-          </>
+          <div>
+            <dt style={{ color: "var(--color-muted)" }}>Est. sales needed</dt>
+            <dd className="font-medium">{progress.estimatedAdditionalSalesNeeded}</dd>
+          </div>
         )}
       </dl>
     </div>

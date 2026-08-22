@@ -19,7 +19,7 @@ export function GoalForm({
   return (
     <form action={formAction} className="flex flex-col gap-4">
       {goalId && <input type="hidden" name="goalId" value={goalId} />}
-      <label className="flex flex-col gap-1 text-sm">
+      <label className="field">
         Target amount (USD)
         <input
           name="targetAmount"
@@ -29,25 +29,21 @@ export function GoalForm({
           required
           defaultValue={defaultTargetAmount}
           placeholder="1000"
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          className="input"
         />
       </label>
-      <label className="flex flex-col gap-1 text-sm">
+      <label className="field">
         Deadline
         <input
           name="deadline"
           type="date"
           required
           defaultValue={defaultDeadline}
-          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+          className="input"
         />
       </label>
-      {state.error && <p className="text-sm text-red-600">{state.error}</p>}
-      <button
-        type="submit"
-        disabled={pending}
-        className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
-      >
+      {state.error && <p className="text-sm" style={{ color: "var(--color-danger)" }}>{state.error}</p>}
+      <button type="submit" disabled={pending} className="btn btn-primary self-start">
         {pending ? "Saving…" : goalId ? "Update goal" : "Set goal"}
       </button>
     </form>
