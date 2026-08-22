@@ -27,6 +27,27 @@ const cspHeader = `
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  experimental: {
+    serverActions: {
+      // Photo uploads (item creation and the item detail "Add photos" form)
+      // go straight through a Server Action as multipart FormData, so the
+      // request body has to fit the app's own declared limits: up to
+      // MAX_PHOTOS_PER_ITEM (8) files at MAX_IMAGE_BYTES (8MB) each — see
+      // src/server/storage/image-validation.ts. Next's 1MB default silently
+      // rejected any real upload; this covers the worst case plus multipart
+      // boundary overhead.
+      bodySizeLimit: "65mb",
+    },
+    // src/proxy.ts (auth gating) runs on every route including the upload
+    // forms, and Next enforces its own, separate cap on how much body a
+    // proxy/middleware function is allowed to read before truncating it —
+    // independent of serverActions.bodySizeLimit above. Left at the 10MB
+    // default, it silently truncates a multipart body mid-boundary, which
+    // surfaces downstream as "Unexpected end of form" rather than a clear
+    // size error. Matches bodySizeLimit so the proxy layer never truncates
+    // anything the Server Action layer would otherwise accept.
+    proxyClientMaxBodySize: "65mb",
+  },
   async headers() {
     return [
       {

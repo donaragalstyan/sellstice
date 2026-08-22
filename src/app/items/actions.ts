@@ -6,7 +6,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { itemSchema } from "@/lib/validation";
 import { imageStorage } from "@/server/storage";
-import { validateImageFile, assertPhotoCountWithinLimit } from "@/server/storage/image-validation";
+import { MAX_IMAGE_BYTES, validateImageFile, assertPhotoCountWithinLimit } from "@/server/storage/image-validation";
+import { looksLikeHeic, convertHeicToJpeg, HeicConversionError } from "@/server/storage/heic";
 
 export type ItemFormState = { error: string | null };
 
@@ -28,22 +29,70 @@ function getUploadedFiles(formData: FormData): File[] {
     .filter((entry): entry is File => entry instanceof File && entry.size > 0);
 }
 
-function validateUploadedFiles(files: File[]): { error: string | null } {
-  for (const file of files) {
-    const validation = validateImageFile({ type: file.type, size: file.size });
-    if (!validation.ok) return { error: validation.error };
-  }
-  return { error: null };
+interface PreparedPhoto {
+  buffer: Buffer;
+  contentType: string;
 }
 
-// Assumes files were already validated with validateUploadedFiles — call
-// order matters here: we validate before creating any DB rows, specifically
-// so a bad file can't leave an orphaned Item behind.
-async function saveUploadedPhotos(files: File[], folder: string, startOrder: number) {
+/**
+ * Browsers report wildly inconsistent (often empty) MIME types for HEIC
+ * files, so detection here is by magic bytes (looksLikeHeic), not file.type
+ * — see heic.ts. A HEIC file is transcoded to JPEG before it ever reaches
+ * validateImageFile/imageStorage: nothing downstream (the gallery, the
+ * authenticated photo route, AI photo analysis) needs to know HEIC was ever
+ * involved, since Claude's vision API and most browsers can't render it
+ * directly anyway.
+ */
+async function preparePhotoForUpload(
+  file: File,
+): Promise<{ ok: true; photo: PreparedPhoto } | { ok: false; error: string }> {
+  if (file.size <= 0) return { ok: false, error: "The file is empty." };
+  if (file.size > MAX_IMAGE_BYTES) return { ok: false, error: "Images must be 8MB or smaller." };
+
+  const raw = Buffer.from(await file.arrayBuffer());
+
+  if (!looksLikeHeic(raw)) {
+    const validation = validateImageFile({ type: file.type, size: raw.length });
+    if (!validation.ok) return { ok: false, error: validation.error };
+    return { ok: true, photo: { buffer: raw, contentType: file.type } };
+  }
+
+  let converted: Buffer;
+  try {
+    converted = await convertHeicToJpeg(raw);
+  } catch (err) {
+    if (err instanceof HeicConversionError) {
+      console.error("HEIC conversion failed:", err.message, err.cause);
+    } else {
+      console.error("Unexpected error converting a HEIC photo:", err);
+    }
+    return { ok: false, error: "Could not process this HEIC photo. Try a different photo, or convert it first." };
+  }
+
+  const validation = validateImageFile({ type: "image/jpeg", size: converted.length });
+  if (!validation.ok) return { ok: false, error: validation.error };
+  return { ok: true, photo: { buffer: converted, contentType: "image/jpeg" } };
+}
+
+/** Validates (and HEIC-transcodes) every file up front, before any DB rows
+ * exist — call order matters here: a bad file must never leave an orphaned
+ * Item, or a partially-saved photo batch, behind. */
+async function prepareUploadedPhotos(
+  files: File[],
+): Promise<{ ok: true; photos: PreparedPhoto[] } | { ok: false; error: string }> {
+  const photos: PreparedPhoto[] = [];
+  for (const file of files) {
+    const result = await preparePhotoForUpload(file);
+    if (!result.ok) return { ok: false, error: result.error };
+    photos.push(result.photo);
+  }
+  return { ok: true, photos };
+}
+
+async function savePreparedPhotos(photos: PreparedPhoto[], folder: string, startOrder: number) {
   const saved: { storageKey: string; order: number }[] = [];
-  for (const [index, file] of files.entries()) {
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const savedImage = await imageStorage.save({ buffer, contentType: file.type, folder });
+  for (const [index, photo] of photos.entries()) {
+    const savedImage = await imageStorage.save({ buffer: photo.buffer, contentType: photo.contentType, folder });
     saved.push({ ...savedImage, order: startOrder + index });
   }
   return saved;
@@ -62,8 +111,8 @@ export async function createItemAction(
   const files = getUploadedFiles(formData);
   const countCheck = assertPhotoCountWithinLimit(0, files.length);
   if (!countCheck.ok) return { error: countCheck.error };
-  const fileValidation = validateUploadedFiles(files);
-  if (fileValidation.error) return { error: fileValidation.error };
+  const prepared = await prepareUploadedPhotos(files);
+  if (!prepared.ok) return { error: prepared.error };
 
   const item = await prisma.item.create({
     data: {
@@ -81,8 +130,8 @@ export async function createItemAction(
     },
   });
 
-  if (files.length > 0) {
-    const saved = await saveUploadedPhotos(files, item.id, 0);
+  if (prepared.photos.length > 0) {
+    const saved = await savePreparedPhotos(prepared.photos, item.id, 0);
     await prisma.itemPhoto.createMany({
       data: saved.map((photo) => ({ itemId: item.id, ...photo })),
     });
@@ -150,10 +199,10 @@ export async function addPhotosAction(
 
   const countCheck = assertPhotoCountWithinLimit(item._count.photos, files.length);
   if (!countCheck.ok) return { error: countCheck.error };
-  const fileValidation = validateUploadedFiles(files);
-  if (fileValidation.error) return { error: fileValidation.error };
+  const prepared = await prepareUploadedPhotos(files);
+  if (!prepared.ok) return { error: prepared.error };
 
-  const saved = await saveUploadedPhotos(files, itemId, item._count.photos);
+  const saved = await savePreparedPhotos(prepared.photos, itemId, item._count.photos);
   await prisma.itemPhoto.createMany({
     data: saved.map((photo) => ({ itemId, ...photo })),
   });
